@@ -1,0 +1,1013 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="theme-color" content="#fbbf24">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="GP Estética">
+<link rel="manifest" href="manifest.json">
+<title>GP Estética Vehicular</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+<style>
+* { box-sizing: border-box; }
+body { font-family: 'Segoe UI', Tahoma, sans-serif; margin: 0; background: #f3f4f6; }
+.sidebar { width: 240px; background: #111827; min-height: 100vh; position: fixed; top: 0; left: 0; bottom: 0; overflow-y: auto; z-index: 100; display: flex; flex-direction: column; }
+.nav-item { padding: 11px 18px; color: #9ca3af; cursor: pointer; display: flex; align-items: center; gap: 10px; font-size: 14px; transition: all 0.15s; }
+.nav-item:hover { background: #1f2937; color: #fbbf24; }
+.nav-item.active { background: #1f2937; color: #fbbf24; border-left: 3px solid #fbbf24; }
+.nav-sep { padding: 6px 18px; font-size: 10px; text-transform: uppercase; letter-spacing: 1.2px; color: #4b5563; margin-top: 6px; }
+.btn-gp { background: #fbbf24; color: #111; font-weight: 700; border: none; cursor: pointer; border-radius: 8px; padding: 10px 20px; font-size: 14px; transition: background 0.15s; }
+.btn-gp:hover { background: #f59e0b; }
+.btn-outline { background: white; color: #374151; border: 1px solid #d1d5db; font-weight: 600; cursor: pointer; border-radius: 8px; padding: 10px 20px; font-size: 14px; }
+.btn-outline:hover { background: #f9fafb; }
+.btn-sm { padding: 6px 14px; font-size: 13px; }
+.card { background: white; border-radius: 12px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); padding: 20px; }
+.kpi { background: #111827; color: white; border-radius: 12px; padding: 20px; }
+.kpi-val { font-size: 26px; font-weight: 800; color: #fbbf24; margin-top: 4px; }
+.badge { padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; display: inline-block; }
+.b-green { background: #d1fae5; color: #065f46; }
+.b-yellow { background: #fef3c7; color: #92400e; }
+.b-red { background: #fee2e2; color: #991b1b; }
+.b-blue { background: #dbeafe; color: #1e40af; }
+.b-gray { background: #f3f4f6; color: #374151; }
+.b-purple { background: #ede9fe; color: #5b21b6; }
+.b-orange { background: #ffedd5; color: #9a3412; }
+.modal-bg { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.55); z-index: 500; align-items: center; justify-content: center; }
+.modal-bg.open { display: flex; }
+.modal-box { background: white; border-radius: 16px; padding: 28px; width: 92%; max-width: 620px; max-height: 90vh; overflow-y: auto; }
+.modal-box.lg { max-width: 780px; }
+label.lbl { display: block; font-size: 12px; font-weight: 700; color: #6b7280; margin-bottom: 5px; text-transform: uppercase; letter-spacing: 0.3px; }
+input[type=text], input[type=number], input[type=email], input[type=date], input[type=password], select, textarea { border: 1px solid #e5e7eb; border-radius: 8px; padding: 9px 12px; width: 100%; font-size: 14px; outline: none; font-family: inherit; background: white; }
+input:focus, select:focus, textarea:focus { border-color: #fbbf24; box-shadow: 0 0 0 3px rgba(251,191,36,0.15); }
+table { width: 100%; border-collapse: collapse; }
+thead th { text-align: left; padding: 10px 14px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: #9ca3af; border-bottom: 2px solid #f3f4f6; white-space: nowrap; }
+tbody td { padding: 13px 14px; border-bottom: 1px solid #f9fafb; font-size: 14px; }
+tbody tr:last-child td { border-bottom: none; }
+tbody tr:hover td { background: #fafafa; }
+.item-row { display: grid; gap: 8px; background: #f9fafb; border-radius: 8px; padding: 10px; margin-bottom: 8px; align-items: center; }
+.logo-box { background: #fbbf24; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 22px; letter-spacing: -1px; color: #111; }
+.chat-bubble { max-width: 72%; padding: 10px 14px; border-radius: 16px; font-size: 14px; line-height: 1.5; word-break: break-word; }
+.chat-mine { background: #fbbf24; color: #111; border-bottom-right-radius: 4px; margin-left: auto; }
+.chat-other { background: #f3f4f6; color: #111; border-bottom-left-radius: 4px; }
+.notif-dot { display:inline-block; background:#ef4444; color:white; font-size:10px; font-weight:700; min-width:18px; height:18px; border-radius:9px; text-align:center; line-height:18px; padding:0 4px; margin-left:auto; }
+.fb-banner { background: #fff7ed; border: 1px solid #fdba74; border-radius: 10px; padding: 12px 18px; margin-bottom: 16px; font-size: 13px; color: #c2410c; display: flex; align-items: center; gap: 10px; }
+@media (max-width: 768px) {
+  .sidebar { transform: translateX(-100%); transition: transform 0.3s; }
+  .sidebar.open { transform: translateX(0); }
+  #mainWrap { margin-left: 0 !important; }
+  .mobile-topbar { display: flex !important; }
+}
+@media print { .no-print { display: none !important; } }
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="loginScreen" style="min-height:100vh;background:#111827;display:flex;align-items:center;justify-content:center;">
+  <div class="card" style="width:360px;text-align:center;">
+    <div id="loginLogoWrap" style="margin-bottom:8px;">
+      <div class="logo-box mx-auto" style="width:80px;height:48px;">GP</div>
+    </div>
+    <p style="font-size:11px;letter-spacing:2px;color:#9ca3af;margin:0 0 6px;">ESTÉTICA VEHICULAR</p>
+    <h2 style="font-size:18px;font-weight:800;margin:0 0 20px;color:#111827;">Iniciar sesión</h2>
+    <div id="loginErr" style="display:none;background:#fee2e2;color:#991b1b;padding:10px;border-radius:8px;margin-bottom:14px;font-size:13px;">Usuario o contraseña incorrectos</div>
+    <div id="loginLoading" style="display:none;background:#fef3c7;color:#92400e;padding:10px;border-radius:8px;margin-bottom:14px;font-size:13px;">⏳ Conectando con la nube...</div>
+    <div style="margin-bottom:12px;"><input type="text" id="loginU" placeholder="Usuario" /></div>
+    <div style="margin-bottom:16px;"><input type="password" id="loginP" placeholder="Contraseña" onkeydown="if(event.key==='Enter')login()" /></div>
+    <button id="loginBtn" class="btn-gp" style="width:100%;padding:12px;font-size:16px;" onclick="login()">Ingresar</button>
+    <p style="margin-top:16px;font-size:12px;color:#9ca3af;"><a href="Configurar Firebase.html" target="_blank" style="color:#d97706;">⚙️ Ver instrucciones de configuración</a></p>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app" style="display:none;">
+  <div class="mobile-topbar no-print" style="display:none;position:fixed;top:0;left:0;right:0;z-index:200;background:#111827;padding:10px 16px;align-items:center;gap:12px;">
+    <button onclick="toggleSidebar()" style="background:none;border:none;color:#fbbf24;font-size:22px;cursor:pointer;">☰</button>
+    <span id="pgTitleMobile" style="color:white;font-weight:700;font-size:16px;"></span>
+  </div>
+  <div class="sidebar" id="sidebar">
+    <div style="padding:18px;border-bottom:1px solid #1f2937;">
+      <div id="sidebarLogoWrap" style="margin-bottom:6px;"><div class="logo-box" style="height:42px;">GP</div></div>
+      <p style="font-size:10px;letter-spacing:2px;color:#6b7280;text-align:center;margin:0;">ESTÉTICA VEHICULAR</p>
+    </div>
+    <div id="fbStatus" style="padding:6px 18px;font-size:11px;color:#6b7280;border-bottom:1px solid #1f2937;display:flex;align-items:center;gap:6px;">
+      <span id="fbDot" style="width:8px;height:8px;border-radius:50%;background:#6b7280;display:inline-block;"></span>
+      <span id="fbLabel">Sin conexión</span>
+    </div>
+    <div id="userBadge" style="padding:12px 18px;font-size:13px;color:#6b7280;border-bottom:1px solid #1f2937;"></div>
+    <nav id="sideNav" style="flex:1;padding:8px 0;overflow-y:auto;"></nav>
+    <div style="padding:16px;">
+      <button onclick="logout()" style="width:100%;background:transparent;border:1px solid #374151;color:#9ca3af;border-radius:8px;padding:8px;font-size:13px;cursor:pointer;">Cerrar sesión</button>
+    </div>
+  </div>
+  <div id="mainWrap" style="margin-left:240px;min-height:100vh;display:flex;flex-direction:column;">
+    <div class="no-print" style="background:white;border-bottom:1px solid #e5e7eb;padding:14px 24px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50;">
+      <h1 id="pgTitle" style="font-size:18px;font-weight:800;margin:0;color:#111827;"></h1>
+      <div id="alertaBadge" style="display:none;background:#fff7ed;color:#c2410c;border:1px solid #fdba74;padding:6px 14px;border-radius:20px;font-size:13px;font-weight:600;cursor:pointer;" onclick="goTo('cobranzas')"></div>
+    </div>
+    <div id="content" style="padding:24px;flex:1;"></div>
+  </div>
+</div>
+<div id="sideOverlay" onclick="closeSidebar()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:99;"></div>
+
+<!-- MODALS -->
+<div id="mCliente" class="modal-bg"><div class="modal-box">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+    <h3 id="mCliTit" style="margin:0;font-size:18px;font-weight:800;">Nuevo Cliente</h3>
+    <button onclick="closeM('mCliente')" style="background:none;border:none;font-size:22px;cursor:pointer;color:#9ca3af;">×</button>
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+    <div style="grid-column:1/-1;"><label class="lbl">Nombre / Razón social *</label><input id="cNombre" /></div>
+    <div><label class="lbl">Tipo</label><select id="cTipo" onchange="toggleDoc()"><option value="particular">Particular (DNI)</option><option value="empresa">Empresa (CUIT)</option></select></div>
+    <div><label class="lbl" id="cDocLbl">DNI</label><input id="cDoc" /></div>
+    <div><label class="lbl">Celular</label><input id="cCelular" /></div>
+    <div><label class="lbl">Email</label><input type="email" id="cEmail" /></div>
+    <div style="grid-column:1/-1;"><label class="lbl">Patente(s)</label><input id="cPatente" /></div>
+  </div>
+  <input type="hidden" id="cId" />
+  <div style="display:flex;gap:10px;margin-top:20px;">
+    <button class="btn-gp" style="flex:1;" onclick="saveCliente()">Guardar</button>
+    <button class="btn-outline" onclick="closeM('mCliente')">Cancelar</button>
+  </div>
+</div></div>
+
+<div id="mPres" class="modal-bg"><div class="modal-box lg">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+    <h3 id="mPresTit" style="margin:0;font-size:18px;font-weight:800;">Nuevo Presupuesto</h3>
+    <button onclick="closeM('mPres')" style="background:none;border:none;font-size:22px;cursor:pointer;color:#9ca3af;">×</button>
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px;">
+    <div style="grid-column:1/-1;"><label class="lbl">Cliente *</label><select id="pCli"></select></div>
+    <div><label class="lbl">Tipo de vehículo</label><select id="pVeh" onchange="updatePrecios()"><option value="auto">Auto</option><option value="camioneta">Camioneta</option></select></div>
+    <div><label class="lbl">Fecha</label><input type="date" id="pFecha" /></div>
+    <div><label class="lbl">Validez (días)</label><input type="number" id="pValidez" value="10" /></div>
+  </div>
+  <div style="margin-bottom:14px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+      <label class="lbl" style="margin:0;">Servicios</label>
+      <button class="btn-gp btn-sm" onclick="addPI()">+ Agregar</button>
+    </div>
+    <div id="pItems"></div>
+  </div>
+  <div style="background:#f9fafb;border-radius:10px;padding:14px;margin-bottom:14px;">
+    <div style="display:flex;justify-content:space-between;margin-bottom:6px;"><span style="color:#6b7280;font-size:14px;">Subtotal sin IVA</span><span id="pSub" style="font-weight:600;">$0</span></div>
+    <div style="display:flex;justify-content:space-between;margin-bottom:6px;"><span style="color:#6b7280;font-size:14px;">IVA 21%</span><span id="pIva" style="font-weight:600;">$0</span></div>
+    <div style="display:flex;justify-content:space-between;"><span style="font-weight:800;font-size:16px;">TOTAL</span><span id="pTot" style="font-weight:800;font-size:18px;color:#d97706;">$0</span></div>
+  </div>
+  <div><label class="lbl">Notas</label><textarea id="pNotas" rows="2"></textarea></div>
+  <input type="hidden" id="pId" />
+  <div style="display:flex;gap:10px;margin-top:20px;">
+    <button class="btn-gp" style="flex:1;" onclick="savePres()">Guardar Presupuesto</button>
+    <button class="btn-outline" onclick="closeM('mPres')">Cancelar</button>
+  </div>
+</div></div>
+
+<div id="mFV" class="modal-bg"><div class="modal-box lg">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+    <h3 id="mFVTit" style="margin:0;font-size:18px;font-weight:800;">Nueva Factura de Venta</h3>
+    <button onclick="closeM('mFV')" style="background:none;border:none;font-size:22px;cursor:pointer;color:#9ca3af;">×</button>
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px;">
+    <div><label class="lbl">Tipo</label><select id="fvTipo"><option value="B">Factura B</option><option value="A">Factura A</option></select></div>
+    <div><label class="lbl">Número</label><input id="fvNum" /></div>
+    <div style="grid-column:1/-1;"><label class="lbl">Cliente *</label><select id="fvCli"></select></div>
+    <div><label class="lbl">Fecha emisión</label><input type="date" id="fvFecha" /></div>
+    <div><label class="lbl">Condición de pago</label><select id="fvCond"><option value="contado">Contado</option><option value="30dias">30 días</option></select></div>
+    <div><label class="lbl">Forma de pago</label><select id="fvFP"><option value="transferencia">Transferencia</option><option value="efectivo">Efectivo</option><option value="tarjeta">Tarjeta</option><option value="cheque">Cheque</option><option value="echeq">E-Cheq</option></select></div>
+  </div>
+  <div style="margin-bottom:14px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+      <label class="lbl" style="margin:0;">Items</label>
+      <button class="btn-gp btn-sm" onclick="addFVI()">+ Agregar</button>
+    </div>
+    <div id="fvItems"></div>
+  </div>
+  <div style="background:#f9fafb;border-radius:10px;padding:14px;margin-bottom:14px;">
+    <div style="display:flex;justify-content:space-between;margin-bottom:6px;"><span style="color:#6b7280;font-size:14px;">Subtotal sin IVA</span><span id="fvSub" style="font-weight:600;">$0</span></div>
+    <div style="display:flex;justify-content:space-between;margin-bottom:6px;"><span style="color:#6b7280;font-size:14px;">IVA 21%</span><span id="fvIva" style="font-weight:600;">$0</span></div>
+    <div style="display:flex;justify-content:space-between;"><span style="font-weight:800;font-size:16px;">TOTAL</span><span id="fvTot" style="font-weight:800;font-size:18px;color:#d97706;">$0</span></div>
+  </div>
+  <input type="hidden" id="fvId" />
+  <div style="display:flex;gap:10px;margin-top:20px;">
+    <button class="btn-gp" style="flex:1;" onclick="saveFV()">Guardar Factura</button>
+    <button class="btn-outline" onclick="closeM('mFV')">Cancelar</button>
+  </div>
+</div></div>
+
+<div id="mPago" class="modal-bg"><div class="modal-box" style="max-width:440px;">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+    <h3 style="margin:0;font-size:18px;font-weight:800;">Registrar Pago</h3>
+    <button onclick="closeM('mPago')" style="background:none;border:none;font-size:22px;cursor:pointer;color:#9ca3af;">×</button>
+  </div>
+  <div id="pagoInfo" style="background:#f9fafb;border-radius:10px;padding:14px;margin-bottom:16px;"></div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+    <div><label class="lbl">Fecha</label><input type="date" id="pgFecha" /></div>
+    <div><label class="lbl">Monto</label><input type="number" id="pgMonto" /></div>
+    <div style="grid-column:1/-1;"><label class="lbl">Forma de pago</label><select id="pgFP"><option value="transferencia">Transferencia</option><option value="efectivo">Efectivo</option><option value="tarjeta">Tarjeta</option><option value="cheque">Cheque</option><option value="echeq">E-Cheq</option></select></div>
+  </div>
+  <input type="hidden" id="pgFacId" />
+  <div style="display:flex;gap:10px;margin-top:20px;">
+    <button class="btn-gp" style="flex:1;" onclick="savePago()">Registrar</button>
+    <button class="btn-outline" onclick="closeM('mPago')">Cancelar</button>
+  </div>
+</div></div>
+
+<div id="mGasto" class="modal-bg"><div class="modal-box">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+    <h3 id="mGTit" style="margin:0;font-size:18px;font-weight:800;">Nuevo Gasto</h3>
+    <button onclick="closeM('mGasto')" style="background:none;border:none;font-size:22px;cursor:pointer;color:#9ca3af;">×</button>
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+    <div><label class="lbl">Fecha *</label><input type="date" id="gFecha" /></div>
+    <div><label class="lbl">Categoría *</label><select id="gCat">
+      <option value="productos_limpieza">Productos de limpieza</option><option value="pulimentos">Pulimentos</option>
+      <option value="insumos_taller">Insumos taller</option><option value="luz">Luz</option><option value="gas">Gas</option>
+      <option value="afip_autonomo">AFIP Autónomo</option><option value="planes_pago_afip">Planes de pago AFIP</option>
+      <option value="sueldos">Sueldos</option><option value="afip_iva">AFIP IVA</option><option value="iibb">IIBB</option><option value="otro">Otro</option>
+    </select></div>
+    <div style="grid-column:1/-1;"><label class="lbl">Proveedor / Descripción *</label><input id="gProv" /></div>
+    <div><label class="lbl">N° Comprobante</label><input id="gNum" /></div>
+    <div><label class="lbl">Forma de pago</label><select id="gFP"><option value="transferencia">Transferencia</option><option value="efectivo">Efectivo</option><option value="tarjeta">Tarjeta</option><option value="cheque">Cheque</option><option value="echeq">E-Cheq</option></select></div>
+    <div><label class="lbl">Subtotal sin IVA</label><input type="number" id="gSub" oninput="calcG()" /></div>
+    <div><label class="lbl">IVA</label><select id="gIvaPct" onchange="calcG()"><option value="0.21">21%</option><option value="0.105">10.5%</option><option value="0">Sin IVA</option></select></div>
+    <div style="grid-column:1/-1;background:#f9fafb;border-radius:8px;padding:12px;display:flex;justify-content:space-between;align-items:center;">
+      <span style="color:#6b7280;font-size:14px;">Total</span><span id="gTot" style="font-weight:800;font-size:18px;color:#d97706;">$0</span>
+    </div>
+  </div>
+  <input type="hidden" id="gId" />
+  <div style="display:flex;gap:10px;margin-top:20px;">
+    <button class="btn-gp" style="flex:1;" onclick="saveGasto()">Guardar</button>
+    <button class="btn-outline" onclick="closeM('mGasto')">Cancelar</button>
+  </div>
+</div></div>
+
+<div id="mStock" class="modal-bg"><div class="modal-box" style="max-width:480px;">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+    <h3 id="mStockTit" style="margin:0;font-size:18px;font-weight:800;">Nuevo Item</h3>
+    <button onclick="closeM('mStock')" style="background:none;border:none;font-size:22px;cursor:pointer;color:#9ca3af;">×</button>
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+    <div style="grid-column:1/-1;"><label class="lbl">Nombre *</label><input id="stNombre" /></div>
+    <div><label class="lbl">Categoría</label><input id="stCat" /></div>
+    <div><label class="lbl">Unidad</label><select id="stUnidad"><option>unidad</option><option>litro</option><option>kg</option><option>ml</option><option>gramo</option><option>metro</option><option>par</option></select></div>
+    <div><label class="lbl">Cantidad actual</label><input type="number" id="stCant" value="0" /></div>
+    <div><label class="lbl">Stock mínimo</label><input type="number" id="stMin" value="0" /></div>
+    <div><label class="lbl">Costo unitario</label><input type="number" id="stCosto" value="0" /></div>
+    <div id="stPrecioWrap" style="display:none;"><label class="lbl">Precio de venta</label><input type="number" id="stPrecio" value="0" /></div>
+  </div>
+  <input type="hidden" id="stId" /><input type="hidden" id="stTipo" />
+  <div style="display:flex;gap:10px;margin-top:20px;">
+    <button class="btn-gp" style="flex:1;" onclick="saveStock()">Guardar</button>
+    <button class="btn-outline" onclick="closeM('mStock')">Cancelar</button>
+  </div>
+</div></div>
+
+<div id="mAjuste" class="modal-bg"><div class="modal-box" style="max-width:400px;">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+    <h3 id="mAjusteTit" style="margin:0;font-size:17px;font-weight:800;">Ajustar Stock</h3>
+    <button onclick="closeM('mAjuste')" style="background:none;border:none;font-size:22px;cursor:pointer;color:#9ca3af;">×</button>
+  </div>
+  <div id="ajusteInfo" style="background:#f9fafb;border-radius:8px;padding:12px;margin-bottom:14px;font-size:14px;"></div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+    <div><label class="lbl">Tipo</label><select id="ajTipo"><option value="entrada">+ Entrada</option><option value="salida">- Salida / Uso</option></select></div>
+    <div><label class="lbl">Cantidad</label><input type="number" id="ajCant" value="1" step="any" /></div>
+    <div style="grid-column:1/-1;"><label class="lbl">Motivo (opcional)</label><input id="ajMotivo" /></div>
+  </div>
+  <input type="hidden" id="ajId" /><input type="hidden" id="ajStipo" />
+  <div style="display:flex;gap:10px;margin-top:16px;">
+    <button class="btn-gp" style="flex:1;" onclick="saveAjuste()">Confirmar</button>
+    <button class="btn-outline" onclick="closeM('mAjuste')">Cancelar</button>
+  </div>
+</div></div>
+
+<script>
+// ===================================================================
+// ⬇️ PEGÁ TU CONFIGURACIÓN DE FIREBASE AQUÍ
+// ===================================================================
+const FIREBASE_CONFIG = {
+  apiKey: "IzaSyBd1AfjVyfNpoh57o0lTnMoueMxO7ojKt4",
+  authDomain: "grandpa-estetica-vehicular.firebaseapp.com",
+  projectId: "grandpa-estetica-vehicular",
+  storageBucket: "grandpa-estetica-vehicular.firebasestorage.app",
+  messagingSenderId: "728680200386",
+  appId: "1:728680200386:web:857f692ab38234d231a35b",
+  measurementId: "G-NL36MPT0C3"
+};
+// ===================================================================
+
+// ===================================================================
+// DEFAULTS
+// ===================================================================
+const EMPRESA_DEF = {
+  nombre:'Grandpa Estética Vehicular', cuit:'20-40492792-3',
+  condicion:'Responsable Inscripto', domicilio:'Rosendo Gaspar 2709, Caleta Olivia, Santa Cruz',
+  tel:'2975409356', pv:'00007', iva:0.21
+};
+const SERVICIOS_DEF = [
+  {id:1,nombre:'Abrillantado',auto:220000,cam:242000},
+  {id:2,nombre:'Tratamiento cerámico 1 año',auto:352000,cam:374000},
+  {id:3,nombre:'Tratamiento cerámico 3 años',auto:572000,cam:616000},
+  {id:4,nombre:'Tratamiento cerámico 5 años',auto:814000,cam:968000},
+  {id:5,nombre:'Limpieza de tapizados',auto:220000,cam:242000},
+  {id:6,nombre:'Restauración de ópticas',auto:100000,cam:100000},
+  {id:7,nombre:'Chapa y pintura (por paño)',auto:100000,cam:100000},
+];
+const USERS_DEF = [
+  {id:1,name:'Nalu',pass:'1973',role:'admin'},
+  {id:2,name:'Generico',pass:'1111',role:'presupuestos'}
+];
+const CAT_GASTO = {productos_limpieza:'Productos de limpieza',pulimentos:'Pulimentos',insumos_taller:'Insumos taller',luz:'Luz',gas:'Gas',afip_autonomo:'AFIP Autónomo',planes_pago_afip:'Planes de pago AFIP',sueldos:'Sueldos',afip_iva:'AFIP IVA',iibb:'IIBB',otro:'Otro'};
+const NAV_ADMIN = [
+  {id:'dashboard',lbl:'Dashboard',ico:'📊'},
+  {sep:'GESTIÓN'},
+  {id:'clientes',lbl:'Clientes',ico:'👥'},
+  {id:'ordenes',lbl:'Órdenes de Trabajo',ico:'🔧'},
+  {id:'presupuestos',lbl:'Presupuestos',ico:'📋'},
+  {id:'facturas',lbl:'Facturas de Venta',ico:'🧾'},
+  {id:'cobranzas',lbl:'Cobranzas',ico:'💰'},
+  {id:'gastos',lbl:'Gastos',ico:'💸'},
+  {sep:'INVENTARIO'},
+  {id:'stockInsumos',lbl:'Stock Insumos',ico:'📦'},
+  {id:'stockProductos',lbl:'Stock a la Venta',ico:'🛍️'},
+  {sep:'COMUNICACIÓN'},
+  {id:'chat',lbl:'Chat Interno',ico:'💬'},
+  {sep:'SISTEMA'},
+  {id:'config',lbl:'Configuración',ico:'⚙️'},
+];
+const NAV_PRES = [{id:'presupuestos',lbl:'Presupuestos',ico:'📋'}];
+
+// ===================================================================
+// FIREBASE + IN-MEMORY STORE
+// ===================================================================
+let FS = null; // Firestore instance
+let FB_OK = false;
+const MEM = { cli:[], pres:[], fv:[], g:[], ot:[], stI:[], stP:[], chat:[], cfg:{} };
+const DB_KEYS = ['cli','pres','fv','g','ot','stI','stP'];
+
+function initFirebase() {
+  if (FIREBASE_CONFIG.apiKey === 'PEGAR-AQUI') return false;
+  try {
+    if (!firebase.apps.length) firebase.initializeApp(FIREBASE_CONFIG);
+    FS = firebase.firestore();
+    return true;
+  } catch(e) { console.error('Firebase init:', e); return false; }
+}
+
+async function loadAllData() {
+  if (!FS) {
+    // Fallback: localStorage
+    DB_KEYS.forEach(k=>{try{MEM[k]=JSON.parse(localStorage.getItem('gp2_'+k)||'[]');}catch{}});
+    try{MEM.cfg=JSON.parse(localStorage.getItem('gp2_cfg')||'{}');}catch{}
+    try{MEM.chat=JSON.parse(localStorage.getItem('gp2_chat')||'[]');}catch{}
+    return;
+  }
+  try {
+    const promises=[...DB_KEYS,'cfg','chat'].map(async k=>{
+      const snap=await FS.collection('gp').doc(k).get();
+      if(snap.exists) MEM[k]=snap.data().d||(k==='cfg'?{}:[]);
+    });
+    await Promise.all(promises);
+  } catch(e){ console.error('Load error:', e); }
+  // Real-time chat listener
+  FS.collection('gp').doc('chat').onSnapshot(snap=>{
+    if(snap.exists){
+      const msgs=snap.data().d||[];
+      const newCount=msgs.length-chatLastCount;
+      MEM.chat=msgs;
+      const d=document.getElementById('chatMsgs');
+      if(d){chatLastCount=MEM.chat.length;d.innerHTML=renderChatMsgs();scrollChatBottom();}
+      else if(newCount>0){updateChatNotif(newCount);}
+    }
+  });
+}
+
+const db = k => MEM[k] || [];
+
+function dbS(k, v) {
+  MEM[k] = v;
+  if (FS) { FS.collection('gp').doc(k).set({d:v}).catch(e=>console.error('Write:',e)); }
+  else { localStorage.setItem('gp2_'+k, JSON.stringify(v)); }
+}
+
+function getCfg() { return MEM.cfg || {}; }
+function saveCfg(c) {
+  MEM.cfg = c;
+  if (FS) { FS.collection('gp').doc('cfg').set({d:c}).catch(e=>console.error('CFG:',e)); }
+  else { localStorage.setItem('gp2_cfg', JSON.stringify(c)); }
+}
+const getEmpresa = () => Object.assign({}, EMPRESA_DEF, getCfg().empresa || {});
+const getServicios = () => getCfg().servicios || JSON.parse(JSON.stringify(SERVICIOS_DEF));
+const getLogo = () => getCfg().logo || null;
+const getUsers = () => getCfg().usuarios || JSON.parse(JSON.stringify(USERS_DEF));
+
+function setFbStatus(ok) {
+  FB_OK = ok;
+  const dot = document.getElementById('fbDot');
+  const lbl = document.getElementById('fbLabel');
+  if (!dot) return;
+  if (ok) { dot.style.background='#22c55e'; lbl.textContent='Firebase conectado'; }
+  else { dot.style.background='#f97316'; lbl.textContent='Modo local (sin Firebase)'; }
+}
+
+// ===================================================================
+// UTILS
+// ===================================================================
+const uid = () => Date.now().toString(36)+Math.random().toString(36).slice(2);
+const today = () => new Date().toISOString().split('T')[0];
+const addDays = (d,n) => { const dt=new Date(d); dt.setDate(dt.getDate()+n); return dt.toISOString().split('T')[0]; };
+const fmtDate = d => { if(!d)return'-'; const [y,m,dd]=d.split('-'); return `${dd}/${m}/${y}`; };
+const fmt = n => new Intl.NumberFormat('es-AR',{style:'currency',currency:'ARS',minimumFractionDigits:0}).format(n||0);
+const closeM = id => document.getElementById(id).classList.remove('open');
+const openM = id => document.getElementById(id).classList.add('open');
+let CU = null, piData = [], fviData = [], chatInterval = null, chatLastCount = 0;
+
+// ===================================================================
+// AUTH
+// ===================================================================
+async function login() {
+  const u=document.getElementById('loginU').value.trim();
+  const p=document.getElementById('loginP').value;
+  const btn=document.getElementById('loginBtn');
+  const loading=document.getElementById('loginLoading');
+  const err=document.getElementById('loginErr');
+  err.style.display='none'; loading.style.display='block';
+  btn.disabled=true; btn.textContent='Conectando...';
+  
+  FB_OK = initFirebase();
+  try { await loadAllData(); } catch(e){}
+  
+  loading.style.display='none';
+  const users=getUsers();
+  const user=users.find(x=>x.name.toLowerCase()===u.toLowerCase()&&x.pass===p);
+  if(!user){
+    err.style.display='block'; btn.disabled=false; btn.textContent='Ingresar'; return;
+  }
+  CU=user;
+  document.getElementById('loginScreen').style.display='none';
+  document.getElementById('app').style.display='block';
+  setFbStatus(FB_OK);
+  initApp();
+}
+
+function logout(){
+  CU=null; FS=null; FB_OK=false;
+  if(chatInterval){clearInterval(chatInterval);chatInterval=null;}
+  document.getElementById('loginScreen').style.display='flex';
+  document.getElementById('app').style.display='none';
+  document.getElementById('loginBtn').textContent='Ingresar';
+  document.getElementById('loginBtn').disabled=false;
+  document.getElementById('loginU').value='';
+  document.getElementById('loginP').value='';
+}
+
+// ===================================================================
+// APP INIT
+// ===================================================================
+function initApp(){
+  renderLoginLogo(); renderSidebarLogo();
+  const nav=CU.role==='admin'?NAV_ADMIN:NAV_PRES;
+  document.getElementById('userBadge').innerHTML=`👤 <strong>${CU.name}</strong> <span class="badge b-yellow" style="margin-left:6px;">${CU.role==='admin'?'Admin':'Presupuestos'}</span>`;
+  document.getElementById('sideNav').innerHTML=nav.map(n=>n.sep
+    ?`<div class="nav-sep">${n.sep}</div>`
+    :`<div class="nav-item" id="nav_${n.id}" onclick="navClick('${n.id}')">${n.ico} <span style="flex:1;">${n.lbl}</span>${n.id==='chat'?`<span id="chatNotif" class="notif-dot" style="display:none;">!</span>`:''}</div>`
+  ).join('');
+  if(!FB_OK){
+    const warn=document.createElement('div');
+    warn.className='fb-banner';
+    warn.style.cssText='margin:16px 24px 0;font-size:12px;';
+    warn.innerHTML=`⚠️ Firebase no configurado — los datos son solo locales. <a href="Configurar Firebase.html" target="_blank" style="color:#c2410c;font-weight:700;">Ver instrucciones</a>`;
+    document.getElementById('mainWrap').insertBefore(warn, document.getElementById('content'));
+  }
+  checkAlertas();
+  goTo(CU.role==='admin'?'dashboard':'presupuestos');
+}
+
+function navClick(id){closeSidebar();goTo(id);}
+
+function goTo(view){
+  if(chatInterval){clearInterval(chatInterval);chatInterval=null;}
+  document.querySelectorAll('.nav-item').forEach(el=>el.classList.remove('active'));
+  const el=document.getElementById('nav_'+view); if(el)el.classList.add('active');
+  const titles={dashboard:'Dashboard',clientes:'Clientes',ordenes:'Órdenes de Trabajo',presupuestos:'Presupuestos',facturas:'Facturas de Venta',cobranzas:'Cobranzas',gastos:'Gastos',stockInsumos:'Stock de Insumos',stockProductos:'Stock a la Venta',chat:'Chat Interno',config:'Configuración'};
+  const t=titles[view]||'';
+  document.getElementById('pgTitle').textContent=t;
+  document.getElementById('pgTitleMobile').textContent=t;
+  ({dashboard:renderDB,clientes:renderCli,ordenes:renderOrdenes,presupuestos:renderPres,facturas:renderFV,cobranzas:renderCob,gastos:renderGas,stockInsumos:renderStockI,stockProductos:renderStockP,chat:renderChat,config:renderConfig})[view]?.();
+}
+
+function checkAlertas(){
+  if(CU?.role!=='admin')return;
+  const fv=getFV(),hoy=today();
+  const venc=fv.filter(f=>calcEstado(f)==='vencida').length;
+  const prox=fv.filter(f=>calcEstado(f)==='pendiente'&&f.fVenc&&f.fVenc<=addDays(hoy,3)&&f.fVenc>hoy).length;
+  const tot=venc+prox;
+  const el=document.getElementById('alertaBadge');
+  if(tot>0){el.style.display='block';el.textContent=`⚠️ ${tot} factura${tot>1?'s':''} ${venc>0?'vencida'+(venc>1?'s':''):'por vencer'}`;}
+  else el.style.display='none';
+}
+function toggleSidebar(){document.getElementById('sidebar').classList.toggle('open');document.getElementById('sideOverlay').style.display=document.getElementById('sidebar').classList.contains('open')?'block':'none';}
+function closeSidebar(){document.getElementById('sidebar').classList.remove('open');document.getElementById('sideOverlay').style.display='none';}
+
+function renderLoginLogo(){const logo=getLogo();const w=document.getElementById('loginLogoWrap');if(!w)return;w.innerHTML=logo?`<img src="${logo}" style="height:60px;max-width:200px;object-fit:contain;margin:0 auto;display:block;" />`:`<div class="logo-box mx-auto" style="width:80px;height:48px;">GP</div>`;}
+function renderSidebarLogo(){const logo=getLogo();const w=document.getElementById('sidebarLogoWrap');if(!w)return;w.innerHTML=logo?`<img src="${logo}" style="height:40px;max-width:180px;object-fit:contain;margin:0 auto;display:block;" />`:`<div class="logo-box" style="height:42px;">GP</div>`;}
+
+// ===================================================================
+// DB shortcuts
+// ===================================================================
+const getCli=()=>db('cli'), getPres=()=>db('pres'), getFV=()=>db('fv');
+const getG=()=>db('g'), getOrdenes=()=>db('ot');
+const getStockI=()=>db('stI'), getStockP=()=>db('stP'), getChat=()=>db('chat');
+
+// ===================================================================
+// DASHBOARD
+// ===================================================================
+function renderDB(){
+  const fv=getFV(),g=getG(),pres=getPres(),ot=getOrdenes(),hoy=today();
+  const totalFac=fv.reduce((s,f)=>s+(f.total||0),0);
+  const totalCob=fv.reduce((s,f)=>s+(f.pagos||[]).reduce((a,p)=>a+p.monto,0),0);
+  const totalG=g.reduce((s,x)=>s+(x.total||0),0);
+  const saldo=fv.filter(f=>calcEstado(f)!=='cobrada').reduce((s,f)=>{const c=(f.pagos||[]).reduce((a,p)=>a+p.monto,0);return s+(f.total-c);},0);
+  const venc=fv.filter(f=>calcEstado(f)==='vencida').length;
+  const meses={};const ahora=new Date();
+  for(let i=5;i>=0;i--){const d=new Date(ahora.getFullYear(),ahora.getMonth()-i,1);const k=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;meses[k]={ing:0,gas:0};}
+  fv.forEach(f=>{const m=(f.fecha||'').slice(0,7);if(meses[m])meses[m].ing+=f.total||0;});
+  g.forEach(x=>{const m=(x.fecha||'').slice(0,7);if(meses[m])meses[m].gas+=x.total||0;});
+  const mKeys=Object.keys(meses);
+  const mLbls=mKeys.map(k=>{const[y,mo]=k.split('-');return['','Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'][+mo]+' '+y.slice(2);});
+  document.getElementById('content').innerHTML=`
+  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:20px;">
+    <div class="kpi"><div style="font-size:12px;color:#9ca3af;">Total Facturado</div><div class="kpi-val">${fmt(totalFac)}</div></div>
+    <div class="kpi"><div style="font-size:12px;color:#9ca3af;">Total Cobrado</div><div class="kpi-val" style="color:#4ade80;">${fmt(totalCob)}</div></div>
+    <div class="kpi"><div style="font-size:12px;color:#9ca3af;">Balance</div><div class="kpi-val" style="color:${totalCob-totalG>=0?'#4ade80':'#f87171'};">${fmt(totalCob-totalG)}</div></div>
+    <div class="kpi"><div style="font-size:12px;color:#9ca3af;">A Cobrar</div><div class="kpi-val" style="color:#fb923c;">${fmt(saldo)}</div>${venc?`<div style="font-size:11px;color:#f87171;margin-top:2px;">${venc} vencida${venc>1?'s':''}</div>`:''}</div>
+  </div>
+  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:20px;">
+    <div class="card" style="border-left:4px solid #fbbf24;padding:14px;"><div style="font-size:11px;color:#9ca3af;text-transform:uppercase;">Órdenes en proceso</div><div style="font-size:28px;font-weight:800;color:#d97706;margin-top:4px;">${ot.filter(o=>o.estado==='en_proceso').length}</div></div>
+    <div class="card" style="border-left:4px solid #3b82f6;padding:14px;"><div style="font-size:11px;color:#9ca3af;text-transform:uppercase;">Presupuestos enviados</div><div style="font-size:28px;font-weight:800;color:#2563eb;margin-top:4px;">${pres.filter(p=>p.estado==='enviado').length}</div></div>
+    <div class="card" style="border-left:4px solid #ef4444;padding:14px;"><div style="font-size:11px;color:#9ca3af;text-transform:uppercase;">Facturas vencidas</div><div style="font-size:28px;font-weight:800;color:#dc2626;margin-top:4px;">${venc}</div></div>
+    <div class="card" style="border-left:4px solid #22c55e;padding:14px;"><div style="font-size:11px;color:#9ca3af;text-transform:uppercase;">Gastos totales</div><div style="font-size:22px;font-weight:800;color:#dc2626;margin-top:4px;">${fmt(totalG)}</div></div>
+  </div>
+  <div style="display:grid;grid-template-columns:2fr 1fr;gap:16px;margin-bottom:20px;">
+    <div class="card"><h3 style="margin:0 0 16px;font-size:15px;font-weight:700;color:#374151;">Facturación vs Gastos (6 meses)</h3><canvas id="chart1" height="180"></canvas></div>
+    <div class="card"><h3 style="margin:0 0 14px;font-size:15px;font-weight:700;color:#374151;">Órdenes recientes</h3>
+      ${ot.length===0?'<p style="color:#9ca3af;font-size:13px;">Sin órdenes</p>':[...ot].reverse().slice(0,5).map(o=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #f3f4f6;"><div><div style="font-size:13px;font-weight:600;">${o.patente||o.clienteNombre||'Sin datos'}</div><div style="font-size:12px;color:#9ca3af;">${o.num}</div></div>${bdgOT(o.estado)}</div>`).join('')}
+    </div>
+  </div>
+  <div class="card"><h3 style="margin:0 0 14px;font-size:15px;font-weight:700;color:#374151;">Últimas facturas</h3>
+    <table><thead><tr><th>N°</th><th>Cliente</th><th>Fecha</th><th>Total</th><th>Estado</th></tr></thead>
+    <tbody>${[...fv].reverse().slice(0,8).map(f=>`<tr><td style="font-family:monospace;font-weight:600;">${f.num||'-'}</td><td>${cliNom(f.cliId)}</td><td>${fmtDate(f.fecha)}</td><td style="font-weight:600;">${fmt(f.total)}</td><td>${bdgFV(f)}</td></tr>`).join('')||'<tr><td colspan="5" style="text-align:center;color:#9ca3af;padding:20px;">Sin facturas</td></tr>'}</tbody></table>
+  </div>`;
+  setTimeout(()=>{const ctx=document.getElementById('chart1');if(!ctx)return;new Chart(ctx,{type:'bar',data:{labels:mLbls,datasets:[{label:'Facturado',data:mKeys.map(k=>meses[k].ing),backgroundColor:'#fbbf24'},{label:'Gastos',data:mKeys.map(k=>meses[k].gas),backgroundColor:'#f87171'}]},options:{responsive:true,plugins:{legend:{position:'bottom'}},scales:{y:{ticks:{callback:v=>'$'+(v/1000).toFixed(0)+'k'}}}}});},50);
+}
+
+// ===================================================================
+// CLIENTES
+// ===================================================================
+function renderCli(){
+  document.getElementById('content').innerHTML=`
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;">
+    <input placeholder="Buscar..." oninput="filtCli(this.value)" style="width:240px;border:1px solid #e5e7eb;border-radius:8px;padding:9px 12px;font-size:14px;" />
+    <button class="btn-gp" onclick="openMCli()">+ Nuevo Cliente</button>
+  </div>
+  <div class="card"><table>
+    <thead><tr><th>Nombre</th><th>Tipo</th><th>Documento</th><th>Celular</th><th>Email</th><th>Patente</th><th></th></tr></thead>
+    <tbody id="tCli">${rowsCli(getCli())}</tbody>
+  </table></div>`;
+}
+function rowsCli(list){if(!list.length)return'<tr><td colspan="7" style="text-align:center;color:#9ca3af;padding:30px;">Sin clientes</td></tr>';return list.map(c=>`<tr><td style="font-weight:600;">${c.nom}</td><td><span class="badge ${c.tipo==='empresa'?'b-blue':'b-gray'}">${c.tipo==='empresa'?'Empresa':'Particular'}</span></td><td style="font-family:monospace;font-size:13px;">${c.doc||'-'}</td><td>${c.cel||'-'}</td><td style="font-size:13px;">${c.email||'-'}</td><td style="font-family:monospace;">${c.pat||'-'}</td><td><button onclick="editCli('${c.id}')" style="color:#d97706;background:none;border:none;cursor:pointer;font-weight:600;font-size:13px;margin-right:8px;">Editar</button><button onclick="delCli('${c.id}')" style="color:#ef4444;background:none;border:none;cursor:pointer;font-size:13px;">Eliminar</button></td></tr>`).join('');}
+function filtCli(q){document.getElementById('tCli').innerHTML=rowsCli(getCli().filter(c=>!q||c.nom.toLowerCase().includes(q.toLowerCase())||(c.doc||'').includes(q)||(c.pat||'').toLowerCase().includes(q.toLowerCase())));}
+function openMCli(){['cNombre','cDoc','cCelular','cEmail','cPatente','cId'].forEach(id=>document.getElementById(id).value='');document.getElementById('cTipo').value='particular';document.getElementById('mCliTit').textContent='Nuevo Cliente';toggleDoc();openM('mCliente');}
+function editCli(id){const c=getCli().find(x=>x.id===id);if(!c)return;document.getElementById('cId').value=id;document.getElementById('cNombre').value=c.nom;document.getElementById('cTipo').value=c.tipo;document.getElementById('cDoc').value=c.doc||'';document.getElementById('cCelular').value=c.cel||'';document.getElementById('cEmail').value=c.email||'';document.getElementById('cPatente').value=c.pat||'';document.getElementById('mCliTit').textContent='Editar Cliente';toggleDoc();openM('mCliente');}
+function toggleDoc(){document.getElementById('cDocLbl').textContent=document.getElementById('cTipo').value==='empresa'?'CUIT':'DNI';}
+function saveCliente(){const nom=document.getElementById('cNombre').value.trim();if(!nom){alert('El nombre es obligatorio');return;}const id=document.getElementById('cId').value;const list=getCli();const obj={id:id||uid(),nom,tipo:document.getElementById('cTipo').value,doc:document.getElementById('cDoc').value.trim(),cel:document.getElementById('cCelular').value.trim(),email:document.getElementById('cEmail').value.trim(),pat:document.getElementById('cPatente').value.trim()};if(id){const i=list.findIndex(c=>c.id===id);list[i]=obj;}else{list.push(obj);}dbS('cli',list);closeM('mCliente');renderCli();}
+function delCli(id){if(!confirm('¿Eliminar este cliente?'))return;dbS('cli',getCli().filter(c=>c.id!==id));renderCli();}
+const cliNom=id=>{const c=getCli().find(x=>x.id===id);return c?c.nom:'-';};
+
+// ===================================================================
+// ÓRDENES DE TRABAJO
+// ===================================================================
+let ordenActual=null;
+function renderOrdenes(){
+  const list=getOrdenes();
+  document.getElementById('content').innerHTML=`
+  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:18px;">
+    <div class="card" style="padding:14px;border-left:4px solid #9ca3af;"><div style="font-size:11px;color:#9ca3af;text-transform:uppercase;">Ingresados</div><div style="font-size:24px;font-weight:800;color:#374151;">${list.filter(o=>o.estado==='ingresado').length}</div></div>
+    <div class="card" style="padding:14px;border-left:4px solid #fbbf24;"><div style="font-size:11px;color:#9ca3af;text-transform:uppercase;">En proceso</div><div style="font-size:24px;font-weight:800;color:#d97706;">${list.filter(o=>o.estado==='en_proceso').length}</div></div>
+    <div class="card" style="padding:14px;border-left:4px solid #22c55e;"><div style="font-size:11px;color:#9ca3af;text-transform:uppercase;">Listos</div><div style="font-size:24px;font-weight:800;color:#16a34a;">${list.filter(o=>o.estado==='listo').length}</div></div>
+    <div class="card" style="padding:14px;border-left:4px solid #6b7280;"><div style="font-size:11px;color:#9ca3af;text-transform:uppercase;">Entregados</div><div style="font-size:24px;font-weight:800;color:#374151;">${list.filter(o=>o.estado==='entregado').length}</div></div>
+  </div>
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+    <select onchange="filtOT(this.value)" style="border:1px solid #e5e7eb;border-radius:8px;padding:9px 12px;background:white;font-size:14px;">
+      <option value="">Todos</option><option value="ingresado">Ingresado</option><option value="en_proceso">En proceso</option><option value="listo">Listo</option><option value="entregado">Entregado</option>
+    </select>
+    <button class="btn-gp" onclick="abrirOrden(null)">+ Nueva Orden</button>
+  </div>
+  <div class="card"><table>
+    <thead><tr><th>N°</th><th>Cliente</th><th>Vehículo</th><th>Patente</th><th>Fecha</th><th>Estado</th><th>📷</th><th></th></tr></thead>
+    <tbody id="tOT">${rowsOT(list)}</tbody>
+  </table></div>`;
+}
+function rowsOT(list){if(!list.length)return'<tr><td colspan="8" style="text-align:center;color:#9ca3af;padding:30px;">Sin órdenes registradas</td></tr>';return[...list].reverse().map(o=>`<tr><td style="font-family:monospace;font-weight:700;">${o.num}</td><td style="font-weight:600;">${o.clienteNombre||cliNom(o.cliId)||'-'}</td><td>${[o.marca,o.modelo].filter(Boolean).join(' ')||'-'}</td><td style="font-family:monospace;">${o.patente||'-'}</td><td>${fmtDate(o.fecha)}</td><td>${bdgOT(o.estado)}</td><td style="color:#9ca3af;font-size:13px;">${(o.fotos||[]).length}</td><td style="white-space:nowrap;"><button onclick="abrirOrden('${o.id}')" style="color:#2563eb;background:none;border:none;cursor:pointer;font-size:13px;font-weight:600;margin-right:6px;">Ver</button><button onclick="cambioEstOT('${o.id}')" style="color:#d97706;background:none;border:none;cursor:pointer;font-size:13px;margin-right:6px;">Estado</button><button onclick="printOT('${o.id}')" style="color:#374151;background:none;border:none;cursor:pointer;font-size:13px;">🖨️</button></td></tr>`).join('');}
+function filtOT(est){const list=est?getOrdenes().filter(o=>o.estado===est):getOrdenes();document.getElementById('tOT').innerHTML=rowsOT(list);}
+function bdgOT(est){const m={ingresado:'b-gray',en_proceso:'b-yellow',listo:'b-green',entregado:'b-blue'};const l={ingresado:'Ingresado',en_proceso:'En proceso',listo:'Listo ✓',entregado:'Entregado'};return`<span class="badge ${m[est]||'b-gray'}">${l[est]||est}</span>`;}
+function cambioEstOT(id){const estados=['ingresado','en_proceso','listo','entregado'];const labs={ingresado:'Ingresado',en_proceso:'En proceso',listo:'Listo',entregado:'Entregado'};const list=getOrdenes();const o=list.find(x=>x.id===id);if(!o)return;const n=prompt(`Estado actual: ${labs[o.estado]}\n\n0 Ingresado\n1 En proceso\n2 Listo\n3 Entregado\n\nNúmero:`);if(n===null||!estados[+n])return;o.estado=estados[+n];dbS('ot',list);renderOrdenes();}
+
+function abrirOrden(id){
+  const list=getOrdenes();
+  ordenActual=id?JSON.parse(JSON.stringify(list.find(o=>o.id===id))):{id:uid(),num:`OT-${String(list.length+1).padStart(5,'0')}`,fecha:today(),estado:'ingresado',cliId:null,clienteNombre:'',clienteDni:'',clienteTelefono:'',marca:'',modelo:'',color:'',km:'',patente:'',nSerie:'',servicios:{chapaPintura:false,equipamiento:false,lavadoTapizado:false,abrillantado:false,ceramico1:false,ceramico3:false,ceramico5:false,otros:''},tareas:{lavadoDetalle:false,encerado:false,lavadoLlantas:false,limpiezaTapizado:false,abrillantado2:false,correccionBarniz:false,selladoCeramico:false,limpiezaBuches:false,limpiezaTecho:false,pulidoOpticasDel:false,pulidoOpticasTra:false,restauracionOpticas:false,lavadoInterior:false,limpiezaMotor:false,ploteo:false,desploteo:false,cambioLuces:false,pinturaLlantas:false,despolarizar:false,mecanicaScaneo:false,cambioOpticas:false,custom1:'',custom2:'',custom3:''},combustible:'50',testigos:'',observacionesTexto:'',danosZonas:{},fotos:[],notas:''};
+  document.getElementById('pgTitle').textContent=id?`Orden ${ordenActual.num}`:'Nueva Orden';
+  document.getElementById('pgTitleMobile').textContent=ordenActual.num;
+  document.getElementById('content').innerHTML=htmlOrdenForm();
+}
+
+function htmlOrdenForm(){
+  const o=ordenActual;const clientes=getCli();
+  const chkS=(k,lbl)=>`<label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:5px 0;font-size:14px;"><input type="checkbox" ${o.servicios[k]?'checked':''} onchange="ordenActual.servicios['${k}']=this.checked" style="width:17px;height:17px;accent-color:#fbbf24;flex-shrink:0;"> ${lbl}</label>`;
+  const chkT=(k,lbl)=>`<label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:4px 0;font-size:13px;"><input type="checkbox" ${o.tareas[k]?'checked':''} onchange="ordenActual.tareas['${k}']=this.checked" style="width:15px;height:15px;accent-color:#fbbf24;flex-shrink:0;"> ${lbl}</label>`;
+  const fotosHtml=(o.fotos||[]).map((f,i)=>`<div style="position:relative;"><img src="${f.data}" style="width:90px;height:80px;object-fit:cover;border-radius:8px;border:1px solid #e5e7eb;" /><button onclick="quitarFoto(${i})" style="position:absolute;top:-6px;right:-6px;background:#ef4444;color:white;border:none;border-radius:50%;width:20px;height:20px;cursor:pointer;font-size:12px;line-height:1;">×</button></div>`).join('');
+  return`
+  <div class="no-print" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px;">
+    <button onclick="renderOrdenes()" style="background:none;border:1px solid #e5e7eb;border-radius:8px;padding:8px 16px;cursor:pointer;font-size:14px;">← Volver</button>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+      <span class="badge b-gray" style="padding:6px 12px;font-size:13px;">${o.num}</span>
+      <select onchange="ordenActual.estado=this.value" style="border:1px solid #e5e7eb;border-radius:8px;padding:8px;font-size:13px;background:white;">
+        ${['ingresado','en_proceso','listo','entregado'].map(s=>`<option value="${s}" ${o.estado===s?'selected':''}>${{ingresado:'Ingresado',en_proceso:'En proceso',listo:'Listo',entregado:'Entregado'}[s]}</option>`).join('')}
+      </select>
+      <button onclick="saveOrden()" class="btn-gp">💾 Guardar</button>
+      <button onclick="printOTActual()" class="btn-outline">🖨️</button>
+      <button onclick="waOrden()" style="background:white;color:#16a34a;border:1px solid #d1d5db;font-weight:700;border-radius:8px;padding:8px 14px;cursor:pointer;">📱 WA</button>
+    </div>
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
+    <div class="card">
+      <h4 style="margin:0 0 14px;font-size:13px;font-weight:700;color:#374151;text-transform:uppercase;">Datos del Cliente</h4>
+      <div style="margin-bottom:10px;"><label class="lbl">Cliente existente</label><select id="otCliSel" onchange="llenarClienteOT(this.value)" style="border:1px solid #e5e7eb;border-radius:8px;padding:9px;width:100%;font-size:14px;"><option value="">-- Buscar cliente --</option>${clientes.map(c=>`<option value="${c.id}" ${o.cliId===c.id?'selected':''}>${c.nom}${c.pat?' – '+c.pat:''}</option>`).join('')}</select></div>
+      <div style="margin-bottom:8px;"><label class="lbl">Nombre completo</label><input value="${o.clienteNombre||''}" oninput="ordenActual.clienteNombre=this.value" /></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;"><div><label class="lbl">DNI / CUIT</label><input value="${o.clienteDni||''}" oninput="ordenActual.clienteDni=this.value" /></div><div><label class="lbl">Teléfono</label><input value="${o.clienteTelefono||''}" oninput="ordenActual.clienteTelefono=this.value" /></div></div>
+    </div>
+    <div class="card">
+      <h4 style="margin:0 0 14px;font-size:13px;font-weight:700;color:#374151;text-transform:uppercase;">Datos del Vehículo</h4>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+        <div><label class="lbl">Marca</label><input value="${o.marca||''}" oninput="ordenActual.marca=this.value" /></div>
+        <div><label class="lbl">Modelo</label><input value="${o.modelo||''}" oninput="ordenActual.modelo=this.value" /></div>
+        <div><label class="lbl">Color</label><input value="${o.color||''}" oninput="ordenActual.color=this.value" /></div>
+        <div><label class="lbl">Kilometraje</label><input type="number" value="${o.km||''}" oninput="ordenActual.km=this.value" /></div>
+        <div><label class="lbl">Patente</label><input value="${o.patente||''}" style="text-transform:uppercase;font-family:monospace;font-size:16px;font-weight:700;" oninput="ordenActual.patente=this.value.toUpperCase()" /></div>
+        <div><label class="lbl">N° de serie</label><input value="${o.nSerie||''}" oninput="ordenActual.nSerie=this.value" /></div>
+      </div>
+    </div>
+  </div>
+  <div class="card" style="margin-bottom:16px;">
+    <h4 style="margin:0 0 14px;font-size:13px;font-weight:700;color:#374151;text-transform:uppercase;">Servicios</h4>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:4px 16px;">
+      ${chkS('chapaPintura','Chapa y pintura')}${chkS('equipamiento','Equipamiento')}${chkS('lavadoTapizado','Lavado de tapizado')}${chkS('abrillantado','Abrillantado')}${chkS('ceramico1','Cerámico 1 año')}${chkS('ceramico3','Cerámico 3 años')}${chkS('ceramico5','Cerámico 5 años')}
+    </div>
+    <div style="margin-top:10px;display:flex;align-items:center;gap:8px;"><label class="lbl" style="margin:0;white-space:nowrap;">Otros:</label><input style="flex:1;" value="${o.servicios.otros||''}" oninput="ordenActual.servicios.otros=this.value" /></div>
+  </div>
+  <div class="card" style="margin-bottom:16px;">
+    <h4 style="margin:0 0 14px;font-size:13px;font-weight:700;color:#374151;text-transform:uppercase;">Tareas a Realizar</h4>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:0 20px;">
+      <div>${chkT('lavadoDetalle','Lavado al detalle')}${chkT('encerado','Encerado')}${chkT('lavadoLlantas','Lavado de llantas')}${chkT('limpiezaTapizado','Limpieza de tapizado')}${chkT('abrillantado2','Abrillantado')}${chkT('correccionBarniz','Corrección de barniz')}${chkT('selladoCeramico','Sellado cerámico')}${chkT('limpiezaBuches','Limpieza de buches')}</div>
+      <div>${chkT('limpiezaTecho','Limpieza de techo')}${chkT('pulidoOpticasDel','Pulido ópticas del.')}${chkT('pulidoOpticasTra','Pulido ópticas tra.')}${chkT('restauracionOpticas','Restauración ópticas')}${chkT('lavadoInterior','Lavado det. de interior')}${chkT('limpiezaMotor','Limpieza de motor')}${chkT('ploteo','Ploteo / pintura')}${chkT('desploteo','Desploteo')}</div>
+      <div>${chkT('cambioLuces','Cambio de luces')}${chkT('pinturaLlantas','Pintura en llantas')}${chkT('despolarizar','Despolarizar')}${chkT('mecanicaScaneo','Mecánica / scaneo')}${chkT('cambioOpticas','Cambio de ópticas')}
+        <input placeholder="Otro..." value="${o.tareas.custom1||''}" oninput="ordenActual.tareas.custom1=this.value" style="margin-top:6px;border:1px solid #e5e7eb;border-radius:6px;padding:5px 9px;font-size:12px;width:100%;" />
+        <input placeholder="Otro..." value="${o.tareas.custom2||''}" oninput="ordenActual.tareas.custom2=this.value" style="margin-top:5px;border:1px solid #e5e7eb;border-radius:6px;padding:5px 9px;font-size:12px;width:100%;" />
+        <input placeholder="Otro..." value="${o.tareas.custom3||''}" oninput="ordenActual.tareas.custom3=this.value" style="margin-top:5px;border:1px solid #e5e7eb;border-radius:6px;padding:5px 9px;font-size:12px;width:100%;" />
+      </div>
+    </div>
+  </div>
+  <div style="display:grid;grid-template-columns:210px 1fr;gap:16px;margin-bottom:16px;">
+    <div class="card">
+      <h4 style="margin:0 0 8px;font-size:13px;font-weight:700;color:#374151;text-transform:uppercase;">Mapa de Daños</h4>
+      <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:8px;">
+        <span style="font-size:10px;background:#fef3c7;border:1px solid #f59e0b;padding:2px 6px;border-radius:4px;">Rayón</span>
+        <span style="font-size:10px;background:#fed7aa;border:1px solid #f97316;padding:2px 6px;border-radius:4px;">Abolladura</span>
+        <span style="font-size:10px;background:#fecaca;border:1px solid #ef4444;padding:2px 6px;border-radius:4px;">Roto</span>
+      </div>
+      <div id="carDiagram">${svgCoche()}</div>
+    </div>
+    <div class="card" style="display:flex;flex-direction:column;gap:12px;">
+      <div>
+        <h4 style="margin:0 0 8px;font-size:13px;font-weight:700;color:#374151;text-transform:uppercase;">Combustible</h4>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;">${['0','25','50','75','100'].map(v=>`<label style="cursor:pointer;font-size:14px;display:flex;align-items:center;gap:4px;"><input type="radio" name="combustible" value="${v}" ${(o.combustible||'50')===v?'checked':''} onchange="ordenActual.combustible='${v}';updFuelBar()" style="accent-color:#fbbf24;"> ${v}%</label>`).join('')}</div>
+        <div style="margin-top:8px;height:14px;background:#e5e7eb;border-radius:10px;overflow:hidden;"><div id="fuelBar" style="height:100%;width:${o.combustible||50}%;background:linear-gradient(to right,#ef4444,#fbbf24,#22c55e);border-radius:10px;transition:width 0.3s;"></div></div>
+      </div>
+      <div><label class="lbl">Testigos / Advertencias</label><textarea rows="3" placeholder="Ej: check engine, airbag..." oninput="ordenActual.testigos=this.value">${o.testigos||''}</textarea></div>
+      <div><label class="lbl">Observaciones adicionales</label><textarea rows="3" placeholder="Rayones, golpes, faltantes..." oninput="ordenActual.observacionesTexto=this.value">${o.observacionesTexto||''}</textarea></div>
+    </div>
+  </div>
+  <div class="card" style="margin-bottom:16px;">
+    <h4 style="margin:0 0 14px;font-size:13px;font-weight:700;color:#374151;text-transform:uppercase;">Fotos del Vehículo</h4>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-start;" id="fotoGrid">${fotosHtml}</div>
+    <div style="margin-top:12px;display:flex;align-items:center;gap:12px;">
+      <input type="file" id="fotoInput" accept="image/*" multiple capture="environment" style="display:none;" onchange="handleFotos(this)" />
+      <button onclick="document.getElementById('fotoInput').click()" class="btn-outline btn-sm">📷 Agregar fotos</button>
+      <span style="color:#9ca3af;font-size:12px;" id="fotoCnt">${(o.fotos||[]).length} foto(s)</span>
+    </div>
+  </div>
+  <div class="card" style="margin-bottom:16px;"><label class="lbl">Notas internas</label><textarea rows="2" oninput="ordenActual.notas=this.value">${o.notas||''}</textarea></div>
+  <div style="display:flex;gap:10px;margin-bottom:40px;" class="no-print">
+    <button onclick="saveOrden()" class="btn-gp" style="flex:1;padding:14px;">💾 Guardar Orden</button>
+    <button onclick="printOTActual()" class="btn-outline" style="padding:14px 20px;">🖨️ Imprimir</button>
+    <button onclick="waOrden()" style="padding:14px 20px;background:white;color:#16a34a;border:1px solid #d1d5db;font-weight:700;border-radius:8px;cursor:pointer;">📱 Enviar WA</button>
+  </div>`;
+}
+
+function svgCoche(){
+  const zones=[{id:'pDel',lbl:'Paragolpes del.',x:65,y:8,w:70,h:16,rx:6},{id:'capo',lbl:'Capó',x:50,y:28,w:100,h:60,rx:8},{id:'gbdi',lbl:'G.B.D.Izq',x:22,y:32,w:24,h:55,rx:7},{id:'gbdd',lbl:'G.B.D.Der',x:154,y:32,w:24,h:55,rx:7},{id:'para',lbl:'Parabrisa',x:52,y:92,w:96,h:22,rx:4},{id:'pdi',lbl:'P.Del.Izq',x:22,y:92,w:24,h:58,rx:5},{id:'pdd',lbl:'P.Del.Der',x:154,y:92,w:24,h:58,rx:5},{id:'techo',lbl:'Techo',x:52,y:118,w:96,h:76,rx:4},{id:'pti',lbl:'P.Tra.Izq',x:22,y:154,w:24,h:58,rx:5},{id:'ptd',lbl:'P.Tra.Der',x:154,y:154,w:24,h:58,rx:5},{id:'luneta',lbl:'Luneta',x:52,y:198,w:96,h:22,rx:4},{id:'gbti',lbl:'G.B.T.Izq',x:22,y:216,w:24,h:55,rx:7},{id:'gbtd',lbl:'G.B.T.Der',x:154,y:216,w:24,h:55,rx:7},{id:'baul',lbl:'Baúl',x:50,y:224,w:100,h:56,rx:8},{id:'pTra',lbl:'Paragolpes tra.',x:65,y:284,w:70,h:16,rx:6}];
+  const fills={'':'#f3f4f6',rayon:'#fef3c7',abolladura:'#fed7aa',roto:'#fecaca'};
+  const strokes={'':'#9ca3af',rayon:'#f59e0b',abolladura:'#f97316',roto:'#ef4444'};
+  const d=ordenActual.danosZonas||{};
+  return`<svg viewBox="0 0 200 308" style="width:185px;height:280px;display:block;cursor:pointer;">${zones.map(z=>{const st=d[z.id]||'';return`<g onclick="cycleZona('${z.id}')" title="${z.lbl}"><rect x="${z.x}" y="${z.y}" width="${z.w}" height="${z.h}" rx="${z.rx}" fill="${fills[st]}" stroke="${strokes[st]}" stroke-width="1.5"/><text x="${z.x+z.w/2}" y="${z.y+z.h/2+3}" text-anchor="middle" font-family="sans-serif" font-size="${z.w<40?'5.5':'6.5'}" fill="#374151" pointer-events="none">${z.lbl}</text></g>`;}).join('')}</svg>`;
+}
+function cycleZona(id){const order=['','rayon','abolladura','roto'];const cur=ordenActual.danosZonas[id]||'';const nxt=order[(order.indexOf(cur)+1)%order.length];if(nxt==='')delete ordenActual.danosZonas[id];else ordenActual.danosZonas[id]=nxt;const d=document.getElementById('carDiagram');if(d)d.innerHTML=svgCoche();}
+function updFuelBar(){const bar=document.getElementById('fuelBar');if(bar)bar.style.width=(ordenActual.combustible||50)+'%';}
+function llenarClienteOT(id){if(!id)return;const c=getCli().find(x=>x.id===id);if(!c)return;ordenActual.cliId=id;ordenActual.clienteNombre=c.nom;ordenActual.clienteDni=c.doc||'';ordenActual.clienteTelefono=c.cel||'';if(c.pat)ordenActual.patente=c.pat;document.querySelectorAll('#content input[oninput]').forEach(el=>{if(el.getAttribute('oninput')&&el.getAttribute('oninput').includes('clienteNombre'))el.value=c.nom;if(el.getAttribute('oninput')&&el.getAttribute('oninput').includes('clienteDni'))el.value=c.doc||'';if(el.getAttribute('oninput')&&el.getAttribute('oninput').includes('clienteTelefono'))el.value=c.cel||'';if(el.getAttribute('oninput')&&el.getAttribute('oninput').includes('patente')&&c.pat)el.value=c.pat;});}
+function handleFotos(input){const files=Array.from(input.files);let cnt=0;files.forEach(file=>{const r=new FileReader();r.onload=e=>{ordenActual.fotos.push({name:file.name,data:e.target.result});cnt++;if(cnt===files.length){const grid=document.getElementById('fotoGrid');const fotoCnt=document.getElementById('fotoCnt');if(grid)grid.innerHTML=(ordenActual.fotos||[]).map((f,i)=>`<div style="position:relative;"><img src="${f.data}" style="width:90px;height:80px;object-fit:cover;border-radius:8px;border:1px solid #e5e7eb;" /><button onclick="quitarFoto(${i})" style="position:absolute;top:-6px;right:-6px;background:#ef4444;color:white;border:none;border-radius:50%;width:20px;height:20px;cursor:pointer;font-size:12px;line-height:1;">×</button></div>`).join('');if(fotoCnt)fotoCnt.textContent=ordenActual.fotos.length+' foto(s)';}};r.readAsDataURL(file);});input.value='';}
+function quitarFoto(i){ordenActual.fotos.splice(i,1);const grid=document.getElementById('fotoGrid');const fotoCnt=document.getElementById('fotoCnt');if(grid)grid.innerHTML=(ordenActual.fotos||[]).map((f,idx)=>`<div style="position:relative;"><img src="${f.data}" style="width:90px;height:80px;object-fit:cover;border-radius:8px;border:1px solid #e5e7eb;" /><button onclick="quitarFoto(${idx})" style="position:absolute;top:-6px;right:-6px;background:#ef4444;color:white;border:none;border-radius:50%;width:20px;height:20px;cursor:pointer;font-size:12px;line-height:1;">×</button></div>`).join('');if(fotoCnt)fotoCnt.textContent=ordenActual.fotos.length+' foto(s)';}
+function saveOrden(){const list=getOrdenes();const idx=list.findIndex(o=>o.id===ordenActual.id);ordenActual.ts=Date.now();if(idx>=0)list[idx]=ordenActual;else list.push(ordenActual);dbS('ot',list);alert('✅ Orden guardada');}
+function printOTActual(){printOTData(ordenActual);}
+function printOT(id){const o=getOrdenes().find(x=>x.id===id);if(!o)return;printOTData(o);}
+function printOTData(o){
+  const emp=getEmpresa();const logo=getLogo();
+  const logoHtml=logo?`<img src="${logo}" style="height:52px;object-fit:contain;" />`:`<div style="background:#fbbf24;color:#111;font-size:24px;font-weight:900;width:60px;height:40px;display:flex;align-items:center;justify-content:center;border-radius:6px;">GP</div>`;
+  const chkT=(k,lbl)=>`<div style="display:flex;align-items:center;gap:6px;padding:3px 0;font-size:12px;"><div style="width:12px;height:12px;border:1.5px solid #374151;border-radius:2px;background:${o.tareas&&o.tareas[k]?'#fbbf24':'white'};display:flex;align-items:center;justify-content:center;flex-shrink:0;">${o.tareas&&o.tareas[k]?'✓':''}</div>${lbl}</div>`;
+  const danosDesc=Object.entries(o.danosZonas||{}).map(([k,v])=>`${k}:${v}`).join(', ')||'Sin daños marcados';
+  const fotosHtml=(o.fotos||[]).slice(0,6).map(f=>`<img src="${f.data}" style="width:140px;height:100px;object-fit:cover;border-radius:8px;border:1px solid #e5e7eb;" />`).join('');
+  const w=window.open('','_blank');
+  w.document.write(`<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>OT ${o.num}</title><style>*{box-sizing:border-box;margin:0;padding:0;}body{font-family:'Segoe UI',sans-serif;padding:24px;color:#111;font-size:13px;}.hdr{display:flex;justify-content:space-between;padding-bottom:14px;border-bottom:3px solid #fbbf24;margin-bottom:18px;}.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;}.box{background:#f9fafb;border-radius:8px;padding:12px;}.box h4{font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#9ca3af;margin-bottom:8px;}.row{display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid #f3f4f6;font-size:13px;}.sec{margin-bottom:14px;}.sec h3{font-size:11px;text-transform:uppercase;color:#fff;background:#374151;padding:6px 12px;border-radius:6px;margin-bottom:8px;}.checks3{display:grid;grid-template-columns:repeat(3,1fr);gap:0 10px;}.fotos{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;}.firma{display:grid;grid-template-columns:1fr 1fr;gap:30px;margin-top:24px;}.firma-box{border-top:1.5px solid #374151;padding-top:8px;text-align:center;font-size:11px;color:#6b7280;}.pie{margin-top:20px;text-align:center;color:#9ca3af;font-size:11px;border-top:1px solid #f3f4f6;padding-top:12px;}@media print{button{display:none!important;}}</style></head><body>
+<div class="hdr"><div>${logoHtml}<div style="font-size:16px;font-weight:800;margin:8px 0 2px;">${emp.nombre}</div><div style="font-size:11px;color:#666;line-height:1.7;">CUIT: ${emp.cuit} | ${emp.condicion}<br>${emp.domicilio} | Tel: ${emp.tel}</div></div><div style="text-align:right;"><div style="font-size:22px;font-weight:900;">ORDEN DE TRABAJO</div><div style="font-size:14px;color:#666;">${o.num} — ${fmtDate(o.fecha)}</div><div style="margin-top:6px;">${bdgOT(o.estado)}</div></div></div>
+<div class="grid2"><div class="box"><h4>Datos del Cliente</h4><div class="row"><span>Nombre</span><strong>${o.clienteNombre||'-'}</strong></div><div class="row"><span>DNI/CUIT</span><strong>${o.clienteDni||'-'}</strong></div><div class="row"><span>Teléfono</span><strong>${o.clienteTelefono||'-'}</strong></div></div><div class="box"><h4>Datos del Vehículo</h4><div class="row"><span>Marca/Modelo</span><strong>${[o.marca,o.modelo].filter(Boolean).join(' ')||'-'}</strong></div><div class="row"><span>Color</span><strong>${o.color||'-'}</strong></div><div class="row"><span>Km</span><strong>${o.km?o.km+' km':'-'}</strong></div><div class="row"><span>Patente</span><strong style="font-family:monospace;font-size:15px;">${o.patente||'-'}</strong></div><div class="row"><span>N° serie</span><strong>${o.nSerie||'-'}</strong></div></div></div>
+<div class="sec"><h3>Servicios</h3><div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0 10px;">${[['chapaPintura','Chapa y pintura'],['equipamiento','Equipamiento'],['lavadoTapizado','Lavado tapizado'],['abrillantado','Abrillantado'],['ceramico1','Cerámico 1 año'],['ceramico3','Cerámico 3 años'],['ceramico5','Cerámico 5 años']].map(([k,l])=>`<div style="display:flex;align-items:center;gap:6px;padding:3px 0;font-size:12px;"><div style="width:12px;height:12px;border:1.5px solid #374151;border-radius:2px;background:${o.servicios&&o.servicios[k]?'#fbbf24':'white'}">${o.servicios&&o.servicios[k]?'✓':''}</div>${l}</div>`).join('')}</div>${o.servicios&&o.servicios.otros?`<div style="margin-top:8px;font-size:12px;"><strong>Otros:</strong> ${o.servicios.otros}</div>`:''}</div>
+<div class="sec"><h3>Tareas a Realizar</h3><div class="checks3"><div>${[['lavadoDetalle','Lavado al detalle'],['encerado','Encerado'],['lavadoLlantas','Lavado de llantas'],['limpiezaTapizado','Limpieza de tapizado'],['abrillantado2','Abrillantado'],['correccionBarniz','Correc. de barniz'],['selladoCeramico','Sellado cerámico'],['limpiezaBuches','Limpieza de buches']].map(([k,l])=>chkT(k,l)).join('')}</div><div>${[['limpiezaTecho','Limpieza de techo'],['pulidoOpticasDel','Pulido ópticas del.'],['pulidoOpticasTra','Pulido ópticas tra.'],['restauracionOpticas','Restauración ópticas'],['lavadoInterior','Lavado det. interior'],['limpiezaMotor','Limpieza de motor'],['ploteo','Ploteo/pintura'],['desploteo','Desploteo']].map(([k,l])=>chkT(k,l)).join('')}</div><div>${[['cambioLuces','Cambio de luces'],['pinturaLlantas','Pintura en llantas'],['despolarizar','Despolarizar'],['mecanicaScaneo','Mecánica/scaneo'],['cambioOpticas','Cambio de ópticas']].map(([k,l])=>chkT(k,l)).join('')}${o.tareas&&o.tareas.custom1?`<div style="display:flex;align-items:center;gap:6px;padding:3px 0;font-size:12px;"><div style="width:12px;height:12px;border:1.5px solid #374151;border-radius:2px;background:#fbbf24;">✓</div>${o.tareas.custom1}</div>`:''}</div></div></div>
+<div class="grid2"><div class="box"><strong style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:#9ca3af;">Observaciones</strong><div style="margin-top:8px;"><strong>Combustible:</strong> ${o.combustible||'50'}%</div><div style="margin-top:4px;"><strong>Daños:</strong> ${danosDesc}</div>${o.testigos?`<div style="margin-top:4px;"><strong>Testigos:</strong> ${o.testigos}</div>`:''} ${o.observacionesTexto?`<div style="margin-top:4px;"><strong>Obs:</strong> ${o.observacionesTexto}</div>`:''}</div><div class="box"><strong style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:#9ca3af;">Fotos</strong><div class="fotos">${fotosHtml||'<span style="color:#9ca3af;font-size:12px;">Sin fotos</span>'}</div></div></div>
+<div class="firma"><div class="firma-box">Firma del Cliente</div><div class="firma-box">Firma del Responsable</div></div>
+<div class="pie">${emp.nombre} | ${emp.domicilio} | Tel: ${emp.tel}</div>
+<div style="text-align:center;margin-top:20px;"><button onclick="window.print()" style="background:#fbbf24;border:none;padding:10px 24px;border-radius:8px;font-weight:700;cursor:pointer;">🖨️ Imprimir / Guardar PDF</button></div>
+</body></html>`);w.document.close();
+}
+function waOrden(){const o=ordenActual||{};const tareas=[...Object.entries(o.tareas||{}).filter(([k,v])=>v===true).map(([k])=>({lavadoDetalle:'Lavado al detalle',encerado:'Encerado',lavadoLlantas:'Lavado de llantas',limpiezaTapizado:'Limpieza de tapizado',abrillantado2:'Abrillantado',correccionBarniz:'Corrección de barniz',selladoCeramico:'Sellado cerámico',limpiezaBuches:'Limpieza de buches',limpiezaTecho:'Limpieza de techo',pulidoOpticasDel:'Pulido ópticas del.',pulidoOpticasTra:'Pulido ópticas tra.',restauracionOpticas:'Restauración ópticas',lavadoInterior:'Lavado det. interior',limpiezaMotor:'Limpieza de motor',ploteo:'Ploteo/pintura',desploteo:'Desploteo',cambioLuces:'Cambio de luces',pinturaLlantas:'Pintura en llantas',despolarizar:'Despolarizar',mecanicaScaneo:'Mecánica/scaneo',cambioOpticas:'Cambio de ópticas'}[k]||k)).filter(Boolean),...[o.tareas?.custom1,o.tareas?.custom2,o.tareas?.custom3].filter(Boolean)];const msg=`🚗 *GRANDPA ESTÉTICA VEHICULAR*\n\nHola ${o.clienteNombre?o.clienteNombre.split(' ')[0]:''}!\n\n📋 *${o.num}*\n🚙 ${[o.marca,o.modelo,o.color].filter(Boolean).join(' ')||'Vehículo'} — Patente: ${o.patente||'-'}\n📅 ${fmtDate(o.fecha)}\n\n*Trabajos:*\n${tareas.map(t=>`  • ${t}`).join('\n')||'  Ver orden completa'}\n\n¡Antes cualquier novedad te avisamos!`;const tel=o.clienteTelefono?'549'+o.clienteTelefono.replace(/\D/g,''):'';window.open(`https://wa.me/${tel}?text=${encodeURIComponent(msg)}`,'_blank');}
+
+// ===================================================================
+// STOCK INSUMOS
+// ===================================================================
+function renderStockI(){
+  const list=getStockI();const bajos=list.filter(i=>i.cant<=i.min).length;
+  document.getElementById('content').innerHTML=`
+  ${bajos?`<div style="background:#fff7ed;border:1px solid #fdba74;border-radius:10px;padding:12px 18px;margin-bottom:16px;font-size:14px;color:#c2410c;font-weight:600;">⚠️ ${bajos} insumo${bajos>1?'s':''} con stock bajo</div>`:''}
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+    <input placeholder="Buscar..." oninput="filtStockI(this.value)" style="width:240px;border:1px solid #e5e7eb;border-radius:8px;padding:9px 12px;font-size:14px;" />
+    <button class="btn-gp" onclick="openMStock('I')">+ Nuevo Insumo</button>
+  </div>
+  <div class="card"><table>
+    <thead><tr><th>Nombre</th><th>Categoría</th><th>Cant. actual</th><th>Mínimo</th><th>Unidad</th><th>Costo unit.</th><th>Estado</th><th></th></tr></thead>
+    <tbody id="tStockI">${rowsStockI(list)}</tbody>
+  </table></div>`;
+}
+function rowsStockI(list){if(!list.length)return'<tr><td colspan="8" style="text-align:center;color:#9ca3af;padding:30px;">Sin insumos registrados</td></tr>';return list.map(i=>{const low=i.cant<=i.min;const zero=i.cant<=0;return`<tr><td style="font-weight:600;">${i.nombre}</td><td><span class="badge b-gray">${i.cat||'General'}</span></td><td style="font-weight:700;color:${zero?'#dc2626':low?'#d97706':'#16a34a'};font-size:15px;">${i.cant} ${i.unidad}</td><td style="color:#6b7280;">${i.min}</td><td style="color:#6b7280;">${i.unidad}</td><td>${fmt(i.costo)}</td><td>${zero?'<span class="badge b-red">Sin stock</span>':low?'<span class="badge b-yellow">Stock bajo</span>':'<span class="badge b-green">OK</span>'}</td><td style="white-space:nowrap;"><button onclick="openAjuste('${i.id}','I')" style="color:#2563eb;background:none;border:none;cursor:pointer;font-size:13px;font-weight:600;margin-right:6px;">Ajustar</button><button onclick="editStock('${i.id}','I')" style="color:#d97706;background:none;border:none;cursor:pointer;font-size:13px;margin-right:6px;">Editar</button><button onclick="delStock('${i.id}','I')" style="color:#ef4444;background:none;border:none;cursor:pointer;font-size:13px;">✕</button></td></tr>`;}).join('');}
+function filtStockI(q){document.getElementById('tStockI').innerHTML=rowsStockI(getStockI().filter(i=>!q||i.nombre.toLowerCase().includes(q.toLowerCase())||(i.cat||'').toLowerCase().includes(q.toLowerCase())));}
+
+// ===================================================================
+// STOCK PRODUCTOS
+// ===================================================================
+function renderStockP(){
+  const list=getStockP();const bajos=list.filter(i=>i.cant<=i.min).length;
+  document.getElementById('content').innerHTML=`
+  ${bajos?`<div style="background:#fff7ed;border:1px solid #fdba74;border-radius:10px;padding:12px 18px;margin-bottom:16px;font-size:14px;color:#c2410c;font-weight:600;">⚠️ ${bajos} producto${bajos>1?'s':''} con stock bajo</div>`:''}
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+    <input placeholder="Buscar..." oninput="filtStockP(this.value)" style="width:240px;border:1px solid #e5e7eb;border-radius:8px;padding:9px 12px;font-size:14px;" />
+    <button class="btn-gp" onclick="openMStock('P')">+ Nuevo Producto</button>
+  </div>
+  <div class="card"><table>
+    <thead><tr><th>Nombre</th><th>Categoría</th><th>Cant.</th><th>Mínimo</th><th>Unidad</th><th>Costo</th><th>Precio venta</th><th>Margen</th><th>Estado</th><th></th></tr></thead>
+    <tbody id="tStockP">${rowsStockP(list)}</tbody>
+  </table></div>`;
+}
+function rowsStockP(list){if(!list.length)return'<tr><td colspan="10" style="text-align:center;color:#9ca3af;padding:30px;">Sin productos registrados</td></tr>';return list.map(i=>{const low=i.cant<=i.min;const zero=i.cant<=0;const margen=i.costo>0?Math.round(((i.precio-i.costo)/i.costo)*100):'-';return`<tr><td style="font-weight:600;">${i.nombre}</td><td><span class="badge b-purple">${i.cat||'General'}</span></td><td style="font-weight:700;color:${zero?'#dc2626':low?'#d97706':'#16a34a'};font-size:15px;">${i.cant}</td><td style="color:#6b7280;">${i.min}</td><td style="color:#6b7280;">${i.unidad}</td><td>${fmt(i.costo)}</td><td style="font-weight:700;color:#d97706;">${fmt(i.precio)}</td><td><span class="badge ${margen!=='-'&&margen>20?'b-green':'b-yellow'}">${margen}%</span></td><td>${zero?'<span class="badge b-red">Sin stock</span>':low?'<span class="badge b-yellow">Stock bajo</span>':'<span class="badge b-green">OK</span>'}</td><td style="white-space:nowrap;"><button onclick="openAjuste('${i.id}','P')" style="color:#2563eb;background:none;border:none;cursor:pointer;font-size:13px;font-weight:600;margin-right:6px;">Ajustar</button><button onclick="editStock('${i.id}','P')" style="color:#d97706;background:none;border:none;cursor:pointer;font-size:13px;margin-right:6px;">Editar</button><button onclick="delStock('${i.id}','P')" style="color:#ef4444;background:none;border:none;cursor:pointer;font-size:13px;">✕</button></td></tr>`;}).join('');}
+function filtStockP(q){document.getElementById('tStockP').innerHTML=rowsStockP(getStockP().filter(i=>!q||i.nombre.toLowerCase().includes(q.toLowerCase())||(i.cat||'').toLowerCase().includes(q.toLowerCase())));}
+
+function openMStock(tipo){document.getElementById('stId').value='';document.getElementById('stTipo').value=tipo;document.getElementById('stNombre').value='';document.getElementById('stCat').value='';document.getElementById('stUnidad').value='unidad';document.getElementById('stCant').value='0';document.getElementById('stMin').value='0';document.getElementById('stCosto').value='0';document.getElementById('stPrecio').value='0';document.getElementById('mStockTit').textContent=tipo==='I'?'Nuevo Insumo':'Nuevo Producto';document.getElementById('stPrecioWrap').style.display=tipo==='P'?'block':'none';openM('mStock');}
+function editStock(id,tipo){const list=tipo==='I'?getStockI():getStockP();const item=list.find(x=>x.id===id);if(!item)return;document.getElementById('stId').value=id;document.getElementById('stTipo').value=tipo;document.getElementById('stNombre').value=item.nombre;document.getElementById('stCat').value=item.cat||'';document.getElementById('stUnidad').value=item.unidad;document.getElementById('stCant').value=item.cant;document.getElementById('stMin').value=item.min;document.getElementById('stCosto').value=item.costo;document.getElementById('stPrecio').value=item.precio||0;document.getElementById('mStockTit').textContent=tipo==='I'?'Editar Insumo':'Editar Producto';document.getElementById('stPrecioWrap').style.display=tipo==='P'?'block':'none';openM('mStock');}
+function saveStock(){const tipo=document.getElementById('stTipo').value;const nom=document.getElementById('stNombre').value.trim();if(!nom){alert('Ingresá un nombre');return;}const id=document.getElementById('stId').value;const list=tipo==='I'?getStockI():getStockP();const obj={id:id||uid(),nombre:nom,cat:document.getElementById('stCat').value.trim(),unidad:document.getElementById('stUnidad').value,cant:parseFloat(document.getElementById('stCant').value)||0,min:parseFloat(document.getElementById('stMin').value)||0,costo:parseFloat(document.getElementById('stCosto').value)||0,precio:parseFloat(document.getElementById('stPrecio').value)||0};if(id){const i=list.findIndex(x=>x.id===id);list[i]=obj;}else{list.push(obj);}dbS(tipo==='I'?'stI':'stP',list);closeM('mStock');tipo==='I'?renderStockI():renderStockP();}
+function delStock(id,tipo){if(!confirm('¿Eliminar?'))return;const list=(tipo==='I'?getStockI():getStockP()).filter(x=>x.id!==id);dbS(tipo==='I'?'stI':'stP',list);tipo==='I'?renderStockI():renderStockP();}
+function openAjuste(id,tipo){const list=tipo==='I'?getStockI():getStockP();const item=list.find(x=>x.id===id);if(!item)return;document.getElementById('ajId').value=id;document.getElementById('ajStipo').value=tipo;document.getElementById('ajTipo').value='entrada';document.getElementById('ajCant').value='1';document.getElementById('ajMotivo').value='';document.getElementById('mAjusteTit').textContent=`Ajustar: ${item.nombre}`;document.getElementById('ajusteInfo').innerHTML=`<strong>${item.nombre}</strong> — Stock: <strong style="color:${item.cant<=item.min?'#dc2626':'#16a34a'}">${item.cant} ${item.unidad}</strong> (mínimo: ${item.min})`;openM('mAjuste');}
+function saveAjuste(){const id=document.getElementById('ajId').value;const tipo=document.getElementById('ajStipo').value;const list=tipo==='I'?getStockI():getStockP();const item=list.find(x=>x.id===id);if(!item)return;const cant=parseFloat(document.getElementById('ajCant').value)||0;const tp=document.getElementById('ajTipo').value;item.cant=Math.max(0,tp==='entrada'?item.cant+cant:item.cant-cant);dbS(tipo==='I'?'stI':'stP',list);closeM('mAjuste');tipo==='I'?renderStockI():renderStockP();}
+
+// ===================================================================
+// CHAT
+// ===================================================================
+function renderChat(){
+  chatLastCount=MEM.chat.length;updateChatNotif(0);
+  document.getElementById('content').innerHTML=`
+  <div style="max-width:700px;margin:0 auto;">
+    <div class="card" style="padding:0;overflow:hidden;">
+      <div style="background:#111827;padding:14px 20px;display:flex;align-items:center;gap:10px;">
+        <div style="width:36px;height:36px;background:#fbbf24;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:14px;color:#111;">GP</div>
+        <div><div style="color:white;font-weight:700;font-size:15px;">Chat Interno</div><div style="color:#6b7280;font-size:12px;">${FB_OK?'🟢 Tiempo real via Firebase':'🟡 Solo local'} • Usuario: ${CU.name}</div></div>
+        <button onclick="clearChatConfirm()" style="margin-left:auto;background:none;border:none;color:#4b5563;cursor:pointer;font-size:12px;">🗑️ Limpiar</button>
+      </div>
+      <div id="chatMsgs" style="height:420px;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:10px;background:#f9fafb;">${renderChatMsgs()}</div>
+      <div style="padding:12px 16px;background:white;border-top:1px solid #e5e7eb;display:flex;gap:10px;align-items:flex-end;">
+        <textarea id="chatInput" placeholder="Escribir mensaje... (Enter para enviar)" rows="2" onkeydown="chatKeydown(event)" style="flex:1;border:1px solid #e5e7eb;border-radius:10px;padding:10px 12px;font-size:14px;font-family:inherit;resize:none;outline:none;"></textarea>
+        <button onclick="enviarMensaje()" class="btn-gp" style="padding:10px 16px;">Enviar</button>
+      </div>
+    </div>
+  </div>`;
+  scrollChatBottom();
+  // Fallback polling if no Firebase
+  if(!FB_OK){chatInterval=setInterval(()=>{const msgs=JSON.parse(localStorage.getItem('gp2_chat')||'[]');if(msgs.length!==chatLastCount){chatLastCount=msgs.length;MEM.chat=msgs;const d=document.getElementById('chatMsgs');if(d){d.innerHTML=renderChatMsgs();scrollChatBottom();}}},2000);}
+}
+function renderChatMsgs(){
+  const msgs=MEM.chat;if(!msgs.length)return'<div style="text-align:center;color:#9ca3af;padding:40px 0;font-size:14px;">Sin mensajes. ¡Empezá la conversación!</div>';
+  return msgs.map(m=>{const mine=m.userId===CU.id;const t=new Date(m.ts);const hora=t.toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'});const fecha=t.toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit'});return`<div style="display:flex;flex-direction:column;align-items:${mine?'flex-end':'flex-start'};">${!mine?`<div style="font-size:11px;color:#9ca3af;margin-bottom:3px;margin-left:4px;">${m.userName}</div>`:''}<div class="chat-bubble ${mine?'chat-mine':'chat-other'}">${escHtml(m.texto)}</div><div style="font-size:10px;color:#9ca3af;margin-top:3px;${mine?'margin-right:4px;':'margin-left:4px;'}">${fecha} ${hora}</div></div>`;}).join('');
+}
+function scrollChatBottom(){setTimeout(()=>{const d=document.getElementById('chatMsgs');if(d)d.scrollTop=d.scrollHeight;},50);}
+const escHtml=t=>(t||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
+function enviarMensaje(){const input=document.getElementById('chatInput');if(!input)return;const texto=input.value.trim();if(!texto)return;const msgs=MEM.chat;msgs.push({id:uid(),userId:CU.id,userName:CU.name,texto,ts:Date.now()});dbS('chat',msgs);input.value='';chatLastCount=msgs.length;const d=document.getElementById('chatMsgs');if(d){d.innerHTML=renderChatMsgs();scrollChatBottom();}if(!FB_OK)window.dispatchEvent(new StorageEvent('storage',{key:'gp2_chat'}));}
+function chatKeydown(e){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();enviarMensaje();}}
+function clearChatConfirm(){if(!confirm('¿Limpiar el historial del chat?'))return;dbS('chat',[]);chatLastCount=0;const d=document.getElementById('chatMsgs');if(d)d.innerHTML=renderChatMsgs();}
+function updateChatNotif(cnt){const el=document.getElementById('chatNotif');if(!el)return;if(cnt>0){el.style.display='inline-block';el.textContent=cnt;}else el.style.display='none';}
+window.addEventListener('storage',e=>{if(e.key==='gp2_chat'&&!FB_OK){MEM.chat=JSON.parse(localStorage.getItem('gp2_chat')||'[]');const newCount=MEM.chat.length-chatLastCount;const d=document.getElementById('chatMsgs');if(d){chatLastCount=MEM.chat.length;d.innerHTML=renderChatMsgs();scrollChatBottom();}else if(newCount>0)updateChatNotif(newCount);}});
+
+// ===================================================================
+// PRESUPUESTOS
+// ===================================================================
+function renderPres(){
+  document.getElementById('content').innerHTML=`
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;">
+    <select onchange="filtPres(this.value)" style="border:1px solid #e5e7eb;border-radius:8px;padding:9px 12px;background:white;font-size:14px;"><option value="">Todos</option><option value="borrador">Borrador</option><option value="enviado">Enviado</option><option value="aceptado">Aceptado</option><option value="rechazado">Rechazado</option><option value="facturado">Facturado</option></select>
+    <button class="btn-gp" onclick="openMPres()">+ Nuevo Presupuesto</button>
+  </div>
+  <div class="card"><table>
+    <thead><tr><th>N°</th><th>Cliente</th><th>Vehículo</th><th>Fecha</th><th>Válido hasta</th><th>Total</th><th>Estado</th><th></th></tr></thead>
+    <tbody id="tPres">${rowsPres(getPres())}</tbody>
+  </table></div>`;
+}
+function rowsPres(list){if(!list.length)return'<tr><td colspan="8" style="text-align:center;color:#9ca3af;padding:30px;">Sin presupuestos</td></tr>';return[...list].reverse().map(p=>`<tr><td style="font-family:monospace;font-weight:700;">${p.num}</td><td>${cliNom(p.cliId)}</td><td style="text-transform:capitalize;">${p.veh||'auto'}</td><td>${fmtDate(p.fecha)}</td><td>${fmtDate(p.fVenc)}</td><td style="font-weight:700;">${fmt(p.total)}</td><td>${bdgPres(p.estado)}</td><td style="white-space:nowrap;"><button onclick="verPres('${p.id}')" style="color:#2563eb;background:none;border:none;cursor:pointer;font-size:13px;font-weight:600;margin-right:6px;">Ver</button><button onclick="waPresup('${p.id}')" style="color:#16a34a;background:none;border:none;cursor:pointer;font-size:13px;font-weight:600;margin-right:6px;">WA</button>${CU.role==='admin'?`<button onclick="cambioEstPres('${p.id}')" style="color:#d97706;background:none;border:none;cursor:pointer;font-size:13px;margin-right:6px;">Estado</button>`:''}${CU.role==='admin'&&p.estado==='aceptado'?`<button onclick="pres2fac('${p.id}')" style="color:#7c3aed;background:none;border:none;cursor:pointer;font-size:13px;">→Factura</button>`:''}</td></tr>`).join('');}
+function filtPres(est){const list=est?getPres().filter(p=>p.estado===est):getPres();document.getElementById('tPres').innerHTML=rowsPres(list);}
+function openMPres(){piData=[];document.getElementById('pId').value='';document.getElementById('pCli').innerHTML='<option value="">-- Cliente --</option>'+getCli().map(c=>`<option value="${c.id}">${c.nom}</option>`).join('');document.getElementById('pFecha').value=today();document.getElementById('pValidez').value=10;document.getElementById('pVeh').value='auto';document.getElementById('pNotas').value='';document.getElementById('mPresTit').textContent='Nuevo Presupuesto';renderPI();calcPres();openM('mPres');}
+function addPI(){piData.push({id:uid(),srvId:'',desc:'',precio:0,qty:1});renderPI();}
+function renderPI(){const veh=document.getElementById('pVeh').value;const srvs=getServicios();document.getElementById('pItems').innerHTML=piData.length?piData.map((it,i)=>`<div class="item-row" style="grid-template-columns:2fr 2fr 1fr auto;"><select onchange="selSrv(${i},this.value)" style="border:1px solid #e5e7eb;border-radius:8px;padding:8px;font-size:13px;"><option value="">Personalizado</option>${srvs.map(s=>`<option value="${s.id}" ${it.srvId==s.id?'selected':''}>${s.nombre}</option>`).join('')}</select><input placeholder="Descripción" value="${it.desc}" oninput="piData[${i}].desc=this.value" style="border:1px solid #e5e7eb;border-radius:8px;padding:8px;font-size:13px;" /><input type="number" placeholder="Precio" value="${it.precio||''}" oninput="piData[${i}].precio=parseFloat(this.value)||0;calcPres();" style="border:1px solid #e5e7eb;border-radius:8px;padding:8px;font-size:13px;" /><button onclick="piData.splice(${i},1);renderPI();calcPres();" style="background:#fee2e2;color:#ef4444;border:none;border-radius:8px;padding:8px 12px;cursor:pointer;">✕</button></div>`).join(''):'<p style="text-align:center;color:#9ca3af;font-size:13px;padding:16px 0;">Sin items. Hacé click en "+ Agregar"</p>';}
+function selSrv(i,sid){const veh=document.getElementById('pVeh').value;const srvs=getServicios();if(sid){const s=srvs.find(x=>x.id==sid);if(s){piData[i].srvId=sid;piData[i].desc=s.nombre;piData[i].precio=veh==='camioneta'?s.cam:s.auto;}}else{piData[i].srvId='';}renderPI();calcPres();}
+function updatePrecios(){const veh=document.getElementById('pVeh').value;const srvs=getServicios();piData.forEach(it=>{if(it.srvId){const s=srvs.find(x=>x.id==it.srvId);if(s)it.precio=veh==='camioneta'?s.cam:s.auto;}});renderPI();calcPres();}
+function calcPres(){const tot=piData.reduce((s,it)=>s+(it.precio*(it.qty||1)),0);const sub=tot/1.21;document.getElementById('pSub').textContent=fmt(sub);document.getElementById('pIva').textContent=fmt(tot-sub);document.getElementById('pTot').textContent=fmt(tot);}
+function savePres(){if(!document.getElementById('pCli').value){alert('Seleccioná un cliente');return;}if(!piData.length){alert('Agregá al menos un servicio');return;}const fecha=document.getElementById('pFecha').value;const val=parseInt(document.getElementById('pValidez').value)||10;const tot=piData.reduce((s,it)=>s+(it.precio*(it.qty||1)),0);const sub=tot/1.21;const list=getPres();const editId=document.getElementById('pId').value;const count=editId?list.find(p=>p.id===editId)?.num:`PRES-${String(list.length+1).padStart(5,'0')}`;const obj={id:editId||uid(),num:count,fecha,fVenc:addDays(fecha,val),cliId:document.getElementById('pCli').value,veh:document.getElementById('pVeh').value,items:[...piData],subtotal:Math.round(sub),iva:Math.round(tot-sub),total:Math.round(tot),notas:document.getElementById('pNotas').value,estado:'borrador',ts:Date.now()};if(editId){const i=list.findIndex(p=>p.id===editId);list[i]={...list[i],...obj};}else{list.push(obj);}dbS('pres',list);closeM('mPres');renderPres();}
+function bdgPres(e){const m={borrador:'b-gray',enviado:'b-blue',aceptado:'b-green',rechazado:'b-red',facturado:'b-yellow'};const l={borrador:'Borrador',enviado:'Enviado',aceptado:'Aceptado',rechazado:'Rechazado',facturado:'Facturado'};return`<span class="badge ${m[e]||'b-gray'}">${l[e]||e}</span>`;}
+function cambioEstPres(id){const estados=['borrador','enviado','aceptado','rechazado','facturado'];const labs={borrador:'Borrador',enviado:'Enviado',aceptado:'Aceptado',rechazado:'Rechazado',facturado:'Facturado'};const list=getPres();const p=list.find(x=>x.id===id);if(!p)return;const n=prompt(`Estado actual: ${labs[p.estado]}\n\n0 Borrador\n1 Enviado\n2 Aceptado\n3 Rechazado\n4 Facturado\n\nNúmero:`);if(n===null||!estados[+n])return;p.estado=estados[+n];dbS('pres',list);renderPres();}
+function verPres(id){const p=getPres().find(x=>x.id===id);if(!p)return;const cli=getCli().find(c=>c.id===p.cliId)||{};const emp=getEmpresa();const logo=getLogo();const logoHtml=logo?`<img src="${logo}" style="height:50px;object-fit:contain;" />`:`<div style="background:#fbbf24;color:#111;font-size:22px;font-weight:900;width:60px;height:38px;display:flex;align-items:center;justify-content:center;border-radius:6px;">GP</div>`;const rows=p.items.map(it=>`<tr><td style="padding:12px;border-bottom:1px solid #f3f4f6;">${it.desc||'Servicio'}</td><td style="padding:12px;border-bottom:1px solid #f3f4f6;text-align:right;">${fmt(it.precio)}</td></tr>`).join('');const w=window.open('','_blank');w.document.write(`<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>Presupuesto ${p.num}</title><style>body{font-family:'Segoe UI',sans-serif;margin:0;padding:40px;color:#111;}.hdr{display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:20px;border-bottom:4px solid #fbbf24;margin-bottom:30px;}.ig{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:24px;}.ib{background:#f9fafb;border-radius:10px;padding:14px;}.ib h4{margin:0 0 8px;font-size:10px;text-transform:uppercase;color:#9ca3af;letter-spacing:1px;}.ib p{margin:3px 0;font-size:13px;}table{width:100%;border-collapse:collapse;}thead th{background:#111;color:#fff;padding:11px;text-align:left;font-size:12px;}thead th:last-child{text-align:right;}.tots{margin-left:auto;width:280px;border-collapse:collapse;}.tots td{padding:7px 10px;font-size:14px;}.tf td{font-size:17px;font-weight:800;background:#fbbf24;padding:11px 10px;}.pie{margin-top:36px;text-align:center;color:#9ca3af;font-size:11px;border-top:1px solid #f3f4f6;padding-top:16px;}@media print{button{display:none!important;}}</style></head><body><div class="hdr"><div>${logoHtml}<div style="font-size:18px;font-weight:800;margin:8px 0 2px;">${emp.nombre}</div><div style="color:#666;font-size:12px;line-height:1.7;">CUIT: ${emp.cuit} | ${emp.condicion}<br>${emp.domicilio}<br>Tel: ${emp.tel}</div></div><div style="text-align:right;"><div style="font-size:30px;font-weight:900;">PRESUPUESTO</div><div style="font-size:16px;color:#666;">${p.num}</div></div></div><div class="ig"><div class="ib"><h4>Cliente</h4><p><strong>${cli.nom||'-'}</strong></p><p>${cli.tipo==='empresa'?'CUIT:':'DNI:'} ${cli.doc||'-'}</p>${cli.cel?`<p>Tel: ${cli.cel}</p>`:''}${cli.pat?`<p>Patente: ${cli.pat}</p>`:''}</div><div class="ib"><h4>Datos</h4><p><strong>Fecha:</strong> ${fmtDate(p.fecha)}</p><p><strong>Válido hasta:</strong> ${fmtDate(p.fVenc)}</p><p><strong>Vehículo:</strong> ${p.veh==='camioneta'?'Camioneta':'Auto'}</p></div></div><table><thead><tr><th>Descripción</th><th style="text-align:right;">Precio (c/IVA)</th></tr></thead><tbody>${rows}</tbody></table><br><div style="display:flex;justify-content:flex-end;"><table class="tots"><tr><td style="color:#666;">Subtotal sin IVA</td><td style="text-align:right;">${fmt(p.subtotal)}</td></tr><tr><td style="color:#666;">IVA 21%</td><td style="text-align:right;">${fmt(p.iva)}</td></tr><tr class="tf"><td>TOTAL</td><td style="text-align:right;">${fmt(p.total)}</td></tr></table></div>${p.notas?`<div style="background:#fff7ed;border-left:4px solid #fbbf24;padding:14px;border-radius:8px;margin-top:16px;font-size:13px;"><strong>Notas:</strong> ${p.notas}</div>`:''}<div class="pie">${emp.nombre} | ${emp.domicilio} | Tel: ${emp.tel}</div><div style="text-align:center;margin-top:24px;"><button onclick="window.print()" style="background:#fbbf24;border:none;padding:12px 28px;border-radius:8px;font-weight:700;font-size:15px;cursor:pointer;">🖨️ Imprimir / Guardar PDF</button></div></body></html>`);w.document.close();}
+function waPresup(id){const p=getPres().find(x=>x.id===id);if(!p)return;const cli=getCli().find(c=>c.id===p.cliId)||{};const items=p.items.map(it=>`  • ${it.desc}: ${fmt(it.precio)}`).join('\n');const msg=`🚗 *GRANDPA ESTÉTICA VEHICULAR*\n\nHola ${cli.nom?cli.nom.split(' ')[0]:''}!\n\n📋 *${p.num}*\n📅 ${fmtDate(p.fecha)} — Válido hasta: ${fmtDate(p.fVenc)}\n\n*Servicios:*\n${items}\n\n💰 *TOTAL: ${fmt(p.total)}* (IVA incluido)\n\n¡Gracias por contactarnos!`;const tel=cli.cel?'549'+cli.cel.replace(/\D/g,''):'';window.open(`https://wa.me/${tel}?text=${encodeURIComponent(msg)}`,'_blank');}
+function pres2fac(id){const list=getPres();const p=list.find(x=>x.id===id);if(!p)return;const i=list.findIndex(x=>x.id===id);list[i].estado='facturado';dbS('pres',list);openMFV();setTimeout(()=>{document.getElementById('fvCli').value=p.cliId;const fvList=getFV();document.getElementById('fvNum').value=`${getEmpresa().pv}-${String(fvList.length+1).padStart(8,'0')}`;fviData=p.items.map(it=>({...it,id:uid()}));renderFVI();calcFV2();document.getElementById('mFVTit').textContent=`Nueva Factura (desde ${p.num})`;},100);goTo('facturas');}
+
+// ===================================================================
+// FACTURAS
+// ===================================================================
+function renderFV(){
+  document.getElementById('content').innerHTML=`
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;">
+    <select onchange="filtFV(this.value)" style="border:1px solid #e5e7eb;border-radius:8px;padding:9px 12px;background:white;font-size:14px;"><option value="">Todas</option><option value="pendiente">Pendiente</option><option value="cobro_parcial">Cobro parcial</option><option value="cobrada">Cobrada</option><option value="vencida">Vencida</option></select>
+    <button class="btn-gp" onclick="openMFV()">+ Nueva Factura</button>
+  </div>
+  <div class="card"><table>
+    <thead><tr><th>N° Factura</th><th>Tipo</th><th>Cliente</th><th>Fecha</th><th>Vencimiento</th><th>Total</th><th>Cobrado</th><th>Estado</th><th></th></tr></thead>
+    <tbody id="tFV">${rowsFV(getFV())}</tbody>
+  </table></div>`;
+}
+function rowsFV(list){if(!list.length)return'<tr><td colspan="9" style="text-align:center;color:#9ca3af;padding:30px;">Sin facturas</td></tr>';return[...list].reverse().map(f=>{const cob=(f.pagos||[]).reduce((s,p)=>s+p.monto,0);return`<tr><td style="font-family:monospace;font-weight:700;">${f.num||'-'}</td><td><span class="badge b-gray">Fact. ${f.tipo}</span></td><td>${cliNom(f.cliId)}</td><td>${fmtDate(f.fecha)}</td><td>${f.fVenc?fmtDate(f.fVenc):'-'}</td><td style="font-weight:700;">${fmt(f.total)}</td><td style="color:#16a34a;font-weight:600;">${fmt(cob)}</td><td>${bdgFV(f)}</td><td style="white-space:nowrap;">${calcEstado(f)!=='cobrada'?`<button onclick="openMPago('${f.id}')" style="color:#16a34a;background:none;border:none;cursor:pointer;font-size:13px;font-weight:600;margin-right:6px;">+ Pago</button>`:''}<button onclick="detallePagos('${f.id}')" style="color:#2563eb;background:none;border:none;cursor:pointer;font-size:13px;font-weight:600;">Detalle</button></td></tr>`;}).join('');}
+function filtFV(est){updateEstados();const list=est?getFV().filter(f=>calcEstado(f)===est):getFV();document.getElementById('tFV').innerHTML=rowsFV(list);}
+function calcEstado(f){const cob=(f.pagos||[]).reduce((s,p)=>s+p.monto,0);if(cob>=f.total)return'cobrada';if(cob>0)return'cobro_parcial';if(f.fVenc&&f.fVenc<today())return'vencida';return'pendiente';}
+function bdgFV(f){const e=calcEstado(f);const m={pendiente:'b-yellow',cobrada:'b-green',vencida:'b-red',cobro_parcial:'b-blue'};const l={pendiente:'Pendiente',cobrada:'Cobrada',vencida:'Vencida',cobro_parcial:'Cobro parcial'};return`<span class="badge ${m[e]||'b-gray'}">${l[e]||e}</span>`;}
+function updateEstados(){const list=getFV();let ch=false;list.forEach(f=>{const e=calcEstado(f);if(f.estado!==e){f.estado=e;ch=true;}});if(ch)dbS('fv',list);}
+function openMFV(){fviData=[];document.getElementById('fvId').value='';document.getElementById('fvCli').innerHTML='<option value="">-- Cliente --</option>'+getCli().map(c=>`<option value="${c.id}">${c.nom}</option>`).join('');const list=getFV();const emp=getEmpresa();document.getElementById('fvNum').value=`${emp.pv}-${String(list.length+1).padStart(8,'0')}`;document.getElementById('fvFecha').value=today();document.getElementById('fvTipo').value='B';document.getElementById('fvCond').value='contado';document.getElementById('fvFP').value='transferencia';document.getElementById('mFVTit').textContent='Nueva Factura de Venta';renderFVI();calcFV2();openM('mFV');}
+function addFVI(){fviData.push({id:uid(),desc:'',precio:0,qty:1});renderFVI();}
+function renderFVI(){document.getElementById('fvItems').innerHTML=fviData.length?fviData.map((it,i)=>`<div class="item-row" style="grid-template-columns:3fr 80px 1fr auto;"><input placeholder="Descripción" value="${it.desc}" oninput="fviData[${i}].desc=this.value" style="border:1px solid #e5e7eb;border-radius:8px;padding:8px;font-size:13px;" /><input type="number" placeholder="Cant." value="${it.qty}" oninput="fviData[${i}].qty=parseFloat(this.value)||1;calcFV2();" style="border:1px solid #e5e7eb;border-radius:8px;padding:8px;font-size:13px;" /><input type="number" placeholder="Precio c/IVA" value="${it.precio||''}" oninput="fviData[${i}].precio=parseFloat(this.value)||0;calcFV2();" style="border:1px solid #e5e7eb;border-radius:8px;padding:8px;font-size:13px;" /><button onclick="fviData.splice(${i},1);renderFVI();calcFV2();" style="background:#fee2e2;color:#ef4444;border:none;border-radius:8px;padding:8px 12px;cursor:pointer;">✕</button></div>`).join(''):'<p style="text-align:center;color:#9ca3af;font-size:13px;padding:16px 0;">Sin items</p>';}
+function calcFV2(){const tot=fviData.reduce((s,it)=>s+(it.precio*(it.qty||1)),0);const sub=tot/1.21;document.getElementById('fvSub').textContent=fmt(sub);document.getElementById('fvIva').textContent=fmt(tot-sub);document.getElementById('fvTot').textContent=fmt(tot);}
+function saveFV(){if(!document.getElementById('fvCli').value){alert('Seleccioná un cliente');return;}if(!fviData.length){alert('Agregá al menos un item');return;}const fecha=document.getElementById('fvFecha').value;const cond=document.getElementById('fvCond').value;const fVenc=cond==='30dias'?addDays(fecha,30):fecha;const tot=fviData.reduce((s,it)=>s+(it.precio*(it.qty||1)),0);const sub=tot/1.21;const list=getFV();const editId=document.getElementById('fvId').value;const obj={id:editId||uid(),num:document.getElementById('fvNum').value,tipo:document.getElementById('fvTipo').value,fecha,fVenc,cliId:document.getElementById('fvCli').value,cond,fp:document.getElementById('fvFP').value,items:[...fviData],subtotal:Math.round(sub),iva:Math.round(tot-sub),total:Math.round(tot),pagos:editId?(list.find(f=>f.id===editId)?.pagos||[]):[],estado:'pendiente'};obj.estado=calcEstado(obj);if(editId){const i=list.findIndex(f=>f.id===editId);list[i]=obj;}else{list.push(obj);}dbS('fv',list);closeM('mFV');renderFV();checkAlertas();}
+function openMPago(facId){const f=getFV().find(x=>x.id===facId);if(!f)return;const cob=(f.pagos||[]).reduce((s,p)=>s+p.monto,0);const saldo=f.total-cob;document.getElementById('pgFacId').value=facId;document.getElementById('pgFecha').value=today();document.getElementById('pgMonto').value=saldo;document.getElementById('pgFP').value=f.fp||'transferencia';document.getElementById('pagoInfo').innerHTML=`<div style="display:flex;justify-content:space-between;margin-bottom:6px;"><span style="color:#6b7280;font-size:13px;">Total factura</span><strong>${fmt(f.total)}</strong></div><div style="display:flex;justify-content:space-between;margin-bottom:6px;"><span style="color:#6b7280;font-size:13px;">Ya cobrado</span><strong style="color:#16a34a;">${fmt(cob)}</strong></div><div style="display:flex;justify-content:space-between;"><span style="color:#6b7280;font-size:13px;">Saldo pendiente</span><strong style="color:#d97706;font-size:18px;">${fmt(saldo)}</strong></div>`;openM('mPago');}
+function savePago(){const facId=document.getElementById('pgFacId').value;const monto=parseFloat(document.getElementById('pgMonto').value)||0;if(!monto){alert('Ingresá un monto');return;}const list=getFV();const f=list.find(x=>x.id===facId);if(!f)return;f.pagos=f.pagos||[];f.pagos.push({fecha:document.getElementById('pgFecha').value,monto,fp:document.getElementById('pgFP').value});f.estado=calcEstado(f);dbS('fv',list);closeM('mPago');renderFV();checkAlertas();}
+function detallePagos(id){const f=getFV().find(x=>x.id===id);if(!f)return;const cob=(f.pagos||[]).reduce((s,p)=>s+p.monto,0);const rows=(f.pagos||[]).length?(f.pagos||[]).map(p=>`<tr><td style="padding:10px;">${fmtDate(p.fecha)}</td><td style="padding:10px;text-transform:capitalize;">${p.fp}</td><td style="padding:10px;text-align:right;font-weight:600;color:#16a34a;">${fmt(p.monto)}</td></tr>`).join(''):'<tr><td colspan="3" style="text-align:center;color:#9ca3af;padding:20px;">Sin pagos</td></tr>';const w=window.open('','_blank','width=520,height=500');w.document.write(`<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>Pagos</title><style>body{font-family:Segoe UI,sans-serif;padding:30px;color:#111;}table{width:100%;border-collapse:collapse;}th{background:#111;color:#fff;padding:10px;text-align:left;}td{border-bottom:1px solid #f3f4f6;}</style></head><body><h2>Factura ${f.num} — ${cliNom(f.cliId)}</h2><p>Total: <strong>${fmt(f.total)}</strong> | Cobrado: <strong style="color:green">${fmt(cob)}</strong> | Saldo: <strong style="color:orange">${fmt(f.total-cob)}</strong></p><table><thead><tr><th>Fecha</th><th>Forma</th><th>Monto</th></tr></thead><tbody>${rows}</tbody></table></body></html>`);w.document.close();}
+
+// ===================================================================
+// COBRANZAS
+// ===================================================================
+function renderCob(){
+  updateEstados();const fv=getFV();const hoy=today();
+  const venc=fv.filter(f=>calcEstado(f)==='vencida');const prox=fv.filter(f=>calcEstado(f)==='pendiente'&&f.fVenc&&f.fVenc<=addDays(hoy,7)&&f.fVenc>hoy);const parc=fv.filter(f=>calcEstado(f)==='cobro_parcial');
+  const totDeuda=[...venc,...prox,...parc].reduce((s,f)=>{const c=(f.pagos||[]).reduce((a,p)=>a+p.monto,0);return s+(f.total-c);},0);
+  document.getElementById('content').innerHTML=`
+  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:20px;">
+    <div class="kpi"><div style="font-size:12px;color:#9ca3af;">Total a cobrar</div><div class="kpi-val" style="color:#fb923c;">${fmt(totDeuda)}</div></div>
+    <div class="kpi" style="border-left:4px solid #ef4444;"><div style="font-size:12px;color:#9ca3af;">Vencidas</div><div class="kpi-val" style="color:#f87171;">${venc.length}</div></div>
+    <div class="kpi" style="border-left:4px solid #f59e0b;"><div style="font-size:12px;color:#9ca3af;">Por vencer (7 días)</div><div class="kpi-val" style="color:#fbbf24;">${prox.length}</div></div>
+    <div class="kpi" style="border-left:4px solid #3b82f6;"><div style="font-size:12px;color:#9ca3af;">Cobro parcial</div><div class="kpi-val" style="color:#60a5fa;">${parc.length}</div></div>
+  </div>
+  ${venc.length?`<div class="card" style="margin-bottom:16px;"><h3 style="margin:0 0 14px;color:#dc2626;font-size:15px;">🔴 Facturas vencidas</h3>${tablaCob(venc)}</div>`:''}
+  ${prox.length?`<div class="card" style="margin-bottom:16px;"><h3 style="margin:0 0 14px;color:#d97706;font-size:15px;">⚠️ Por vencer (7 días)</h3>${tablaCob(prox)}</div>`:''}
+  ${parc.length?`<div class="card" style="margin-bottom:16px;"><h3 style="margin:0 0 14px;color:#2563eb;font-size:15px;">💙 Cobros parciales</h3>${tablaCob(parc)}</div>`:''}
+  ${!venc.length&&!prox.length&&!parc.length?`<div class="card" style="text-align:center;padding:60px 20px;"><div style="font-size:56px;">✅</div><h3 style="font-size:22px;margin:16px 0 8px;">¡Todo al día!</h3><p style="color:#9ca3af;">No hay facturas vencidas ni próximas a vencer.</p></div>`:''}`;
+}
+function tablaCob(list){return`<table><thead><tr><th>N°</th><th>Cliente</th><th>Vencimiento</th><th>Total</th><th>Saldo</th><th></th></tr></thead><tbody>${list.map(f=>{const cob=(f.pagos||[]).reduce((s,p)=>s+p.monto,0);const saldo=f.total-cob;const dias=Math.floor((new Date(today())-new Date(f.fVenc))/86400000);return`<tr><td style="font-family:monospace;font-size:13px;">${f.num}</td><td>${cliNom(f.cliId)}</td><td>${fmtDate(f.fVenc)} ${dias>0?`<span class="badge b-red">${dias}d</span>`:''}</td><td>${fmt(f.total)}</td><td style="font-weight:700;color:#d97706;">${fmt(saldo)}</td><td style="white-space:nowrap;"><button onclick="openMPago('${f.id}')" style="color:#16a34a;background:none;border:none;cursor:pointer;font-size:13px;font-weight:600;margin-right:6px;">Registrar pago</button><button onclick="waRecordatorio('${f.id}')" style="color:#16a34a;background:none;border:none;cursor:pointer;font-size:13px;">📱 WA</button></td></tr>`;}).join('')}</tbody></table>`;}
+function waRecordatorio(id){const f=getFV().find(x=>x.id===id);if(!f)return;const cli=getCli().find(c=>c.id===f.cliId)||{};const cob=(f.pagos||[]).reduce((s,p)=>s+p.monto,0);const saldo=f.total-cob;const msg=`Hola ${cli.nom?cli.nom.split(' ')[0]:''}! Te escribimos desde *Grandpa Estética Vehicular*.\n\n📄 N° ${f.num}\n📅 Vencimiento: ${fmtDate(f.fVenc)}\n💰 Saldo: *${fmt(saldo)}*\n\nPodés pagar por transferencia o efectivo. ¡Gracias!`;const tel=cli.cel?'549'+cli.cel.replace(/\D/g,''):'';window.open(`https://wa.me/${tel}?text=${encodeURIComponent(msg)}`,'_blank');}
+
+// ===================================================================
+// GASTOS
+// ===================================================================
+function renderGas(){
+  const list=getG();const tot=list.reduce((s,g)=>s+(g.total||0),0);
+  document.getElementById('content').innerHTML=`
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;">
+    <div class="kpi" style="padding:10px 20px;"><span style="font-size:12px;color:#9ca3af;">Total gastos: </span><span style="font-size:20px;font-weight:800;color:#f87171;">${fmt(tot)}</span></div>
+    <button class="btn-gp" onclick="openMGasto()">+ Nuevo Gasto</button>
+  </div>
+  <div class="card"><table>
+    <thead><tr><th>Fecha</th><th>Categoría</th><th>Proveedor</th><th>N° Comp.</th><th>Forma pago</th><th>Total</th><th></th></tr></thead>
+    <tbody id="tGas">${rowsGas(list)}</tbody>
+  </table></div>`;
+}
+function rowsGas(list){if(!list.length)return'<tr><td colspan="7" style="text-align:center;color:#9ca3af;padding:30px;">Sin gastos</td></tr>';return[...list].reverse().map(g=>`<tr><td>${fmtDate(g.fecha)}</td><td><span class="badge b-gray" style="font-size:11px;">${CAT_GASTO[g.cat]||g.cat}</span></td><td style="font-weight:600;">${g.prov}</td><td style="font-family:monospace;font-size:12px;">${g.num||'-'}</td><td style="text-transform:capitalize;">${g.fp||'-'}</td><td style="font-weight:700;color:#dc2626;">${fmt(g.total)}</td><td><button onclick="editGasto('${g.id}')" style="color:#d97706;background:none;border:none;cursor:pointer;font-size:13px;font-weight:600;margin-right:6px;">Editar</button><button onclick="delGasto('${g.id}')" style="color:#ef4444;background:none;border:none;cursor:pointer;font-size:13px;">Eliminar</button></td></tr>`).join('');}
+function openMGasto(){document.getElementById('gId').value='';document.getElementById('gFecha').value=today();document.getElementById('gCat').value='productos_limpieza';document.getElementById('gProv').value='';document.getElementById('gNum').value='';document.getElementById('gFP').value='transferencia';document.getElementById('gSub').value='';document.getElementById('gIvaPct').value='0.21';document.getElementById('gTot').textContent='$0';document.getElementById('mGTit').textContent='Nuevo Gasto';openM('mGasto');}
+function editGasto(id){const g=getG().find(x=>x.id===id);if(!g)return;document.getElementById('gId').value=id;document.getElementById('gFecha').value=g.fecha;document.getElementById('gCat').value=g.cat;document.getElementById('gProv').value=g.prov;document.getElementById('gNum').value=g.num||'';document.getElementById('gFP').value=g.fp||'transferencia';document.getElementById('gSub').value=g.sub||'';document.getElementById('gIvaPct').value=g.ivaPct||'0.21';document.getElementById('gTot').textContent=fmt(g.total);document.getElementById('mGTit').textContent='Editar Gasto';openM('mGasto');}
+function calcG(){const sub=parseFloat(document.getElementById('gSub').value)||0;const pct=parseFloat(document.getElementById('gIvaPct').value)||0;document.getElementById('gTot').textContent=fmt(sub*(1+pct));}
+function saveGasto(){const prov=document.getElementById('gProv').value.trim();if(!prov){alert('Ingresá proveedor o descripción');return;}const sub=parseFloat(document.getElementById('gSub').value)||0;const pct=parseFloat(document.getElementById('gIvaPct').value)||0;const list=getG();const editId=document.getElementById('gId').value;const obj={id:editId||uid(),fecha:document.getElementById('gFecha').value,cat:document.getElementById('gCat').value,prov,num:document.getElementById('gNum').value,fp:document.getElementById('gFP').value,sub,ivaPct:pct,iva:Math.round(sub*pct),total:Math.round(sub*(1+pct))};if(editId){const i=list.findIndex(g=>g.id===editId);list[i]=obj;}else{list.push(obj);}dbS('g',list);closeM('mGasto');renderGas();}
+function delGasto(id){if(!confirm('¿Eliminar?'))return;dbS('g',getG().filter(g=>g.id!==id));renderGas();}
+
+// ===================================================================
+// CONFIGURACIÓN
+// ===================================================================
+let cfgSrvs=[];
+function renderConfig(){
+  const emp=getEmpresa();const srvs=getServicios();const logo=getLogo();const users=getUsers();
+  cfgSrvs=JSON.parse(JSON.stringify(srvs));
+  document.getElementById('content').innerHTML=`
+  ${!FB_OK?`<div class="fb-banner" style="margin-bottom:16px;">⚠️ Firebase no configurado. Los datos son locales y no se sincronizan. <a href="Configurar Firebase.html" target="_blank" style="color:#c2410c;font-weight:700;text-decoration:underline;">Ver instrucciones →</a></div>`:''}
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+    <div class="card" style="grid-column:1/-1;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;"><h3 style="margin:0;font-size:15px;font-weight:700;">Datos de la empresa</h3><button class="btn-gp btn-sm" onclick="saveEmpresaConfig()">Guardar</button></div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;">
+        <div><label class="lbl">Nombre</label><input id="cfNombre" value="${emp.nombre||''}" /></div>
+        <div><label class="lbl">CUIT</label><input id="cfCuit" value="${emp.cuit||''}" /></div>
+        <div><label class="lbl">Condición IVA</label><select id="cfIvaC"><option ${emp.condicion==='Responsable Inscripto'?'selected':''}>Responsable Inscripto</option><option ${emp.condicion==='Monotributo'?'selected':''}>Monotributo</option><option ${emp.condicion==='Exento'?'selected':''}>Exento</option></select></div>
+        <div style="grid-column:1/3;"><label class="lbl">Domicilio</label><input id="cfDir" value="${emp.domicilio||''}" /></div>
+        <div><label class="lbl">Teléfono</label><input id="cfTel" value="${emp.tel||''}" /></div>
+        <div><label class="lbl">Punto de venta</label><input id="cfPV" value="${emp.pv||''}" /></div>
+      </div>
+    </div>
+    <div class="card">
+      <h3 style="margin:0 0 14px;font-size:15px;font-weight:700;">Logo</h3>
+      <div id="cfLogoPreview" style="margin-bottom:14px;">${logo?`<img src="${logo}" style="max-height:80px;max-width:220px;object-fit:contain;border:1px solid #e5e7eb;border-radius:8px;padding:8px;" />`:'<div class="logo-box" style="width:80px;height:50px;font-size:22px;">GP</div>'}</div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <button class="btn-outline btn-sm" onclick="document.getElementById('cfLogoFile').click()">📁 Subir logo</button>
+        ${logo?`<button onclick="quitarLogo()" class="btn-outline btn-sm" style="color:#ef4444;border-color:#ef4444;">✕ Quitar</button>`:''}
+      </div>
+      <input type="file" id="cfLogoFile" accept="image/*" style="display:none;" onchange="handleLogo(this)" />
+      <p style="color:#9ca3af;font-size:12px;margin-top:10px;">Se usa en presupuestos y órdenes de trabajo.</p>
+    </div>
+    <div class="card">
+      <h3 style="margin:0 0 14px;font-size:15px;font-weight:700;">Usuarios</h3>
+      <div id="cfUsersList">${users.map((u,i)=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:#f9fafb;border-radius:8px;margin-bottom:8px;"><div><strong style="font-size:14px;">${u.name}</strong> <span class="badge ${u.role==='admin'?'b-yellow':'b-gray'}" style="margin-left:6px;">${u.role==='admin'?'Admin':'Presupuestos'}</span></div><button onclick="delUser(${i})" style="background:none;border:none;color:#ef4444;cursor:pointer;font-size:13px;">✕</button></div>`).join('')}</div>
+      <button onclick="addUserPrompt()" class="btn-outline btn-sm" style="margin-top:8px;">+ Agregar usuario</button>
+    </div>
+    <div class="card" style="grid-column:1/-1;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;"><h3 style="margin:0;font-size:15px;font-weight:700;">Servicios y precios</h3><div style="display:flex;gap:8px;"><button onclick="addServicio()" class="btn-outline btn-sm">+ Agregar</button><button onclick="saveServicios()" class="btn-gp btn-sm">Guardar precios</button></div></div>
+      <div id="cfSrvTable">${renderCfgSrvs()}</div>
+    </div>
+    <div class="card">
+      <h3 style="margin:0 0 14px;font-size:15px;font-weight:700;">Respaldo de datos</h3>
+      <p style="color:#6b7280;font-size:13px;margin-bottom:16px;">Exportá e importá todos los datos.</p>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <button class="btn-gp btn-sm" onclick="exportar()">⬇️ Exportar</button>
+        <button class="btn-outline btn-sm" onclick="document.getElementById('importFile').click()">⬆️ Importar</button>
+      </div>
+      <input type="file" id="importFile" accept=".json" onchange="importar(this)" style="display:none;" />
+    </div>
+    <div class="card">
+      <h3 style="margin:0 0 14px;font-size:15px;font-weight:700;">Estadísticas</h3>
+      ${[['Clientes',getCli().length],['Órdenes de Trabajo',getOrdenes().length],['Presupuestos',getPres().length],['Facturas',getFV().length],['Gastos',getG().length],['Insumos',getStockI().length],['Productos',getStockP().length],['Chat',MEM.chat.length+' mensajes']].map(([k,v])=>`<div style="display:flex;justify-content:space-between;padding:7px 10px;background:#f9fafb;border-radius:6px;margin-bottom:6px;font-size:13px;"><span style="color:#6b7280;">${k}</span><strong>${v}</strong></div>`).join('')}
+    </div>
+  </div>`;
+}
+function renderCfgSrvs(){if(!cfgSrvs.length)return'<p style="color:#9ca3af;font-size:13px;">Sin servicios.</p>';return`<table><thead><tr><th>Nombre del servicio</th><th>Precio Auto</th><th>Precio Camioneta</th><th></th></tr></thead><tbody>${cfgSrvs.map((s,i)=>`<tr><td><input value="${s.nombre}" oninput="cfgSrvs[${i}].nombre=this.value" style="border:1px solid #e5e7eb;border-radius:6px;padding:7px 10px;width:100%;font-size:13px;" /></td><td><input type="number" value="${s.auto}" oninput="cfgSrvs[${i}].auto=parseFloat(this.value)||0" style="border:1px solid #e5e7eb;border-radius:6px;padding:7px 10px;width:100%;font-size:13px;" /></td><td><input type="number" value="${s.cam}" oninput="cfgSrvs[${i}].cam=parseFloat(this.value)||0" style="border:1px solid #e5e7eb;border-radius:6px;padding:7px 10px;width:100%;font-size:13px;" /></td><td><button onclick="cfgSrvs.splice(${i},1);document.getElementById('cfSrvTable').innerHTML=renderCfgSrvs();" style="background:#fee2e2;color:#ef4444;border:none;border-radius:6px;padding:7px 10px;cursor:pointer;">✕</button></td></tr>`).join('')}</tbody></table>`;}
+function addServicio(){cfgSrvs.push({id:uid(),nombre:'Nuevo servicio',auto:0,cam:0});document.getElementById('cfSrvTable').innerHTML=renderCfgSrvs();}
+function saveServicios(){const cfg=getCfg();cfg.servicios=cfgSrvs;saveCfg(cfg);alert('✅ Precios guardados');}
+function saveEmpresaConfig(){const cfg=getCfg();cfg.empresa={nombre:document.getElementById('cfNombre').value.trim(),cuit:document.getElementById('cfCuit').value.trim(),condicion:document.getElementById('cfIvaC').value,domicilio:document.getElementById('cfDir').value.trim(),tel:document.getElementById('cfTel').value.trim(),pv:document.getElementById('cfPV').value.trim(),iva:0.21};saveCfg(cfg);renderSidebarLogo();alert('✅ Datos de empresa guardados');}
+function handleLogo(input){const file=input.files[0];if(!file)return;const r=new FileReader();r.onload=e=>{const cfg=getCfg();cfg.logo=e.target.result;saveCfg(cfg);renderSidebarLogo();renderLoginLogo();document.getElementById('cfLogoPreview').innerHTML=`<img src="${e.target.result}" style="max-height:80px;max-width:220px;object-fit:contain;border:1px solid #e5e7eb;border-radius:8px;padding:8px;" />`;alert('✅ Logo guardado');};r.readAsDataURL(file);}
+function quitarLogo(){if(!confirm('¿Quitar el logo?'))return;const cfg=getCfg();delete cfg.logo;saveCfg(cfg);renderSidebarLogo();renderLoginLogo();renderConfig();}
+function addUserPrompt(){const name=prompt('Nombre:');if(!name)return;const pass=prompt('Contraseña:');if(!pass)return;const role=prompt('Rol (admin / presupuestos):');if(!['admin','presupuestos'].includes(role)){alert('Rol inválido. Usá admin o presupuestos');return;}const cfg=getCfg();const users=getUsers();users.push({id:uid(),name,pass,role});cfg.usuarios=users;saveCfg(cfg);renderConfig();}
+function delUser(idx){const users=getUsers();if(users.length<=1){alert('Debe haber al menos un usuario');return;}if(!confirm(`¿Eliminar usuario "${users[idx].name}"?`))return;users.splice(idx,1);const cfg=getCfg();cfg.usuarios=users;saveCfg(cfg);renderConfig();}
+function exportar(){const data={ts:new Date().toISOString(),v:'3.0',cli:getCli(),pres:getPres(),fv:getFV(),g:getG(),ot:getOrdenes(),stI:getStockI(),stP:getStockP(),chat:MEM.chat,cfg:getCfg()};const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:'application/json'}));a.download=`gp-backup-${today()}.json`;a.click();}
+function importar(input){const file=input.files[0];if(!file)return;const r=new FileReader();r.onload=e=>{try{const d=JSON.parse(e.target.result);if(!confirm('¿Importar datos? Esto reemplazará todo lo actual.'))return;if(d.cli)dbS('cli',d.cli);if(d.pres)dbS('pres',d.pres);if(d.fv)dbS('fv',d.fv);if(d.g)dbS('g',d.g);if(d.ot)dbS('ot',d.ot);if(d.stI)dbS('stI',d.stI);if(d.stP)dbS('stP',d.stP);if(d.chat)dbS('chat',d.chat);if(d.cfg)saveCfg(d.cfg);alert('✅ Datos importados');renderConfig();}catch{alert('❌ Archivo inválido');}};r.readAsText(file);}
+
+// ===================================================================
+// INIT
+// ===================================================================
+document.querySelectorAll('.modal-bg').forEach(m=>m.addEventListener('click',e=>{if(e.target===m)m.classList.remove('open');}));
+if('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(()=>{});
+let deferredPrompt;
+window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferredPrompt=e;const btn=document.createElement('button');btn.textContent='📲 Instalar app';btn.style.cssText='position:fixed;bottom:20px;right:20px;background:#fbbf24;color:#111;border:none;border-radius:10px;padding:10px 20px;font-weight:700;font-size:14px;cursor:pointer;z-index:9999;box-shadow:0 4px 12px rgba(0,0,0,0.2);';btn.onclick=()=>{deferredPrompt.prompt();deferredPrompt.userChoice.then(()=>btn.remove());};document.body.appendChild(btn);setTimeout(()=>{if(document.body.contains(btn))btn.remove();},15000);});
+</script>
+</body>
+</html>
