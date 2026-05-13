@@ -171,12 +171,42 @@ function render(){
     </div>
 
     <div class="card">
-      <div class="card-title">💬 Envianos un mensaje</div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+        <div class="card-title" style="margin-bottom:0;">💬 Mensajes</div>
+        <button onclick="recargarMensajes()" style="background:none;border:1px solid #e5e7eb;border-radius:8px;padding:5px 12px;font-size:12px;cursor:pointer;color:#6b7280;">🔄 Actualizar</button>
+      </div>
+      <div id="chatBox" style="max-height:300px;overflow-y:auto;margin-bottom:12px;">${renderChatHTML(o.mensajesCliente||[])}</div>
       <textarea id="msgTexto" placeholder="Escribí tu consulta o comentario..."></textarea>
       <button class="btn btn-send" onclick="enviarMensaje()">📨 Enviar mensaje</button>
-      <button class="btn btn-wa" onclick="enviarWA()" style="margin-top:8px;">📱 Consultar por WhatsApp</button>
     </div>
   `;
+}
+
+function renderChatHTML(mensajes){
+  if(!mensajes||!mensajes.length) return '<p style="color:#9ca3af;font-size:13px;text-align:center;padding:12px 0;">Sin mensajes aún.</p>';
+  return mensajes.map(m=>{
+    const esTaller = m.origen==='taller';
+    return `<div style="display:flex;justify-content:${esTaller?'flex-start':'flex-end'};margin-bottom:10px;">
+      <div style="max-width:80%;background:${esTaller?'#f0fdf4':'#eff6ff'};border:1px solid ${esTaller?'#bbf7d0':'#bfdbfe'};border-radius:12px;padding:10px 13px;">
+        <div style="font-size:10px;font-weight:700;color:${esTaller?'#16a34a':'#2563eb'};text-transform:uppercase;margin-bottom:4px;">${esTaller?'Taller':'Vos'}</div>
+        <div style="font-size:14px;color:#111827;">${m.texto||''}</div>
+        <div style="font-size:11px;color:#9ca3af;margin-top:4px;text-align:right;">${fmtDate(m.fecha)}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function recargarMensajes(){
+  try {
+    const snap = await FS.collection('gp').doc('ot').get();
+    if(!snap.exists) return;
+    const list = snap.data().d || [];
+    const o = list.find(x => x.seguimientoKey === KEY);
+    if(!o) return;
+    ORDEN = o;
+    const chatBox = document.getElementById('chatBox');
+    if(chatBox){ chatBox.innerHTML = renderChatHTML(o.mensajesCliente||[]); chatBox.scrollTop = chatBox.scrollHeight; }
+  } catch(e){}
 }
 
 async function enviarMensaje(){
@@ -191,10 +221,13 @@ async function enviarMensaje(){
     const idx = list.findIndex(o => o.seguimientoKey === KEY);
     if(idx < 0) throw new Error('not found');
     if(!list[idx].mensajesCliente) list[idx].mensajesCliente = [];
-    const msg = { id:uid(), texto:txt, fecha:new Date().toISOString().split('T')[0], leido:false };
+    const msg = { id:uid(), texto:txt, fecha:new Date().toISOString().split('T')[0], leido:false, origen:'cliente' };
     list[idx].mensajesCliente.push(msg);
     await FS.collection('gp').doc('ot').set({d: list});
+    ORDEN = list[idx];
     document.getElementById('msgTexto').value='';
+    const chatBox = document.getElementById('chatBox');
+    if(chatBox){ chatBox.innerHTML = renderChatHTML(list[idx].mensajesCliente||[]); chatBox.scrollTop = chatBox.scrollHeight; }
     alert('Mensaje enviado. Te responderemos a la brevedad.');
 
     // Notificar al taller por WA
