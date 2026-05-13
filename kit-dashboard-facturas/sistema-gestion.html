@@ -12,6 +12,7 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <!-- Firebase -->
+<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
 <style>
@@ -365,6 +366,25 @@ tbody tr:hover td { background: #fafafa; }
   </div>
 </div></div>
 
+<div id="mImportPreview" class="modal-bg"><div class="modal-box" style="max-width:700px;">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+    <h3 style="margin:0;font-size:18px;font-weight:800;">Vista previa — Importar AFIP</h3>
+    <button onclick="closeM('mImportPreview')" style="background:none;border:none;font-size:22px;cursor:pointer;color:#9ca3af;">×</button>
+  </div>
+  <p style="font-size:13px;color:#6b7280;margin-bottom:12px;">Se van a importar <strong id="importPreviewCount">0</strong> registros. Revisá antes de confirmar.</p>
+  <div style="overflow-x:auto;max-height:320px;overflow-y:auto;">
+    <table style="width:100%;font-size:12px;border-collapse:collapse;">
+      <thead><tr style="background:#f9fafb;"><th style="padding:8px;text-align:left;border-bottom:1px solid #e5e7eb;">Fecha</th><th style="padding:8px;text-align:left;border-bottom:1px solid #e5e7eb;">N° Comp.</th><th style="padding:8px;text-align:left;border-bottom:1px solid #e5e7eb;">Nombre</th><th style="padding:8px;text-align:right;border-bottom:1px solid #e5e7eb;">Neto</th><th style="padding:8px;text-align:right;border-bottom:1px solid #e5e7eb;">IVA</th><th style="padding:8px;text-align:right;border-bottom:1px solid #e5e7eb;">Total</th></tr></thead>
+      <tbody id="importPreviewBody"></tbody>
+    </table>
+  </div>
+  <p id="importPreviewMore" style="display:none;font-size:12px;color:#9ca3af;margin-top:8px;text-align:center;"></p>
+  <div style="display:flex;gap:10px;margin-top:20px;">
+    <button class="btn-gp" style="flex:1;" onclick="confirmarImport()">✅ Confirmar importación</button>
+    <button class="btn-outline" onclick="closeM('mImportPreview')">Cancelar</button>
+  </div>
+</div></div>
+
 <div id="mContab" class="modal-bg"><div class="modal-box" style="max-width:420px;">
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
     <h3 style="margin:0;font-size:18px;font-weight:800;">Configurar Período</h3>
@@ -679,6 +699,7 @@ async function login() {
     err.style.display='block'; btn.disabled=false; btn.textContent='Ingresar'; return;
   }
   CU=user;
+  localStorage.setItem('gp_cu', JSON.stringify(user));
   document.getElementById('loginScreen').style.display='none';
   document.getElementById('app').style.display='block';
   setFbStatus(FB_OK);
@@ -687,6 +708,7 @@ async function login() {
 
 function logout(){
   CU=null; FS=null; FB_OK=false;
+  localStorage.removeItem('gp_cu');
   if(chatInterval){clearInterval(chatInterval);chatInterval=null;}
   document.getElementById('loginScreen').style.display='flex';
   document.getElementById('app').style.display='none';
@@ -988,11 +1010,14 @@ function htmlOrdenForm(){
       </div>
       <div id="avancesList">${renderAvancesHTML(o.avances||[])}</div>
     </div>
-    ${(o.mensajesCliente||[]).length?`
     <div style="border-top:1px solid #f3f4f6;padding-top:14px;margin-top:14px;">
-      <h5 style="margin:0 0 10px;font-size:12px;font-weight:700;color:#374151;text-transform:uppercase;">💬 Mensajes del cliente</h5>
+      <h5 style="margin:0 0 10px;font-size:12px;font-weight:700;color:#374151;text-transform:uppercase;">💬 Chat con el cliente</h5>
       <div id="mensajesClienteList">${renderMensajesHTML(o.mensajesCliente||[])}</div>
-    </div>`:''}
+      <div style="margin-top:10px;display:flex;gap:8px;align-items:center;">
+        <input id="respuestaTaller" placeholder="Escribí tu respuesta al cliente..." style="flex:1;border:1px solid #e5e7eb;border-radius:8px;padding:9px 12px;font-size:13px;outline:none;" onkeydown="if(event.key==='Enter')responderCliente()" />
+        <button onclick="responderCliente()" class="btn-gp" style="white-space:nowrap;padding:9px 16px;font-size:13px;">Enviar ✉️</button>
+      </div>
+    </div>
   </div>
 
   <div class="card" style="margin-bottom:16px;">
@@ -1270,7 +1295,10 @@ function renderFV(){
   document.getElementById('content').innerHTML=`
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;">
     <select onchange="filtFV(this.value)" style="border:1px solid #e5e7eb;border-radius:8px;padding:9px 12px;background:white;font-size:14px;"><option value="">Todas</option><option value="pendiente">Pendiente</option><option value="cobro_parcial">Cobro parcial</option><option value="cobrada">Cobrada</option><option value="vencida">Vencida</option></select>
-    <button class="btn-gp" onclick="openMFV()">+ Nueva Factura</button>
+    <div style="display:flex;gap:8px;">
+      <label class="btn-outline" style="cursor:pointer;padding:9px 16px;font-size:14px;font-weight:600;border-radius:8px;white-space:nowrap;">📥 Importar AFIP<input type="file" accept=".xlsx,.xls,.csv" style="display:none;" onchange="handleImportAFIP(this,'fv')" /></label>
+      <button class="btn-gp" onclick="openMFV()">+ Nueva Factura</button>
+    </div>
   </div>
   <div class="card"><table>
     <thead><tr><th>N° Factura</th><th>Tipo</th><th>Cliente</th><th>Fecha</th><th>Vencimiento</th><th>Total</th><th>Cobrado</th><th>Estado</th><th></th></tr></thead>
@@ -1918,7 +1946,10 @@ function renderGas(){
   document.getElementById('content').innerHTML=`
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;">
     <div class="kpi" style="padding:10px 20px;"><span style="font-size:12px;color:#9ca3af;">Total gastos: </span><span style="font-size:20px;font-weight:800;color:#f87171;">${fmt(tot)}</span></div>
-    <button class="btn-gp" onclick="openMGasto()">+ Nuevo Gasto</button>
+    <div style="display:flex;gap:8px;">
+      <label class="btn-outline" style="cursor:pointer;padding:9px 16px;font-size:14px;font-weight:600;border-radius:8px;white-space:nowrap;">📥 Importar AFIP<input type="file" accept=".xlsx,.xls,.csv" style="display:none;" onchange="handleImportAFIP(this,'gas')" /></label>
+      <button class="btn-gp" onclick="openMGasto()">+ Nuevo Gasto</button>
+    </div>
   </div>
   <div class="card"><table>
     <thead><tr><th>Fecha</th><th>Categoría</th><th>Proveedor</th><th>N° Comp.</th><th>Forma pago</th><th>Total</th><th></th></tr></thead>
@@ -2261,6 +2292,83 @@ function waConfirmTurno(id){
 }
 
 // ===================================================================
+// IMPORTADOR AFIP (Excel / CSV)
+// ===================================================================
+function _normCol(s){ return String(s||'').toLowerCase().trim().replace(/\s+/g,' ').normalize('NFD').replace(/[̀-ͯ]/g,''); }
+function _parseFechaAFIP(s){ const str=String(s||'').trim(); if(str.includes('/')){const[d,m,y]=str.split('/');return`${y}-${m.padStart(2,'0')}-${d.padStart(2,'0')}`;}return str; }
+function _afipNum(pv,num){ return`${String(pv||0).padStart(5,'0')}-${String(num||0).padStart(8,'0')}`; }
+function _afipTipo(s){ const m=String(s||'').match(/\b([ABC])\b/i); return m?m[1].toUpperCase():'B'; }
+
+function handleImportAFIP(input, tipo){
+  const file=input.files[0]; if(!file)return;
+  input.value='';
+  const reader=new FileReader();
+  reader.onload=e=>{
+    try{
+      const data=new Uint8Array(e.target.result);
+      const wb=XLSX.read(data,{type:'array'});
+      const ws=wb.Sheets[wb.SheetNames[0]];
+      const rows=XLSX.utils.sheet_to_json(ws,{defval:''});
+      if(!rows.length){alert('El archivo está vacío.');return;}
+
+      const keyMap={};
+      Object.keys(rows[0]).forEach(k=>{keyMap[_normCol(k)]=k;});
+      const find=(...names)=>{for(const n of names){const f=Object.keys(keyMap).find(k=>k.includes(_normCol(n)));if(f)return keyMap[f];}return null;};
+
+      const cFecha=find('fecha');
+      const cPV=find('punto de venta','punto venta');
+      const cNum=find('numero desde','número desde');
+      const cTipo=find('tipo');
+      const cNeto=find('neto gravado total');
+      const cIVA=find('total iva');
+      const cTotal=find('imp. total','importe total');
+      const cNombre=tipo==='fv'?find('denominacion receptor','denominación receptor'):find('denominacion emisor','denominación emisor');
+
+      if(!cFecha||!cTotal){alert('No se reconoció el formato AFIP.\nVerificá que sea el archivo de Comprobantes Emitidos/Recibidos.');return;}
+
+      const records=rows.map(r=>({
+        fecha:_parseFechaAFIP(r[cFecha]),
+        num:_afipNum(r[cPV],r[cNum]),
+        tipo:_afipTipo(r[cTipo]),
+        nombre:String(r[cNombre]||'').trim(),
+        base:parseFloat(r[cNeto])||0,
+        iva:parseFloat(r[cIVA])||0,
+        total:parseFloat(r[cTotal])||0,
+      })).filter(r=>r.fecha&&r.total);
+
+      if(!records.length){alert('No se encontraron registros válidos.');return;}
+      _showImportPreview(records,tipo);
+    }catch(err){alert('Error al leer el archivo. Verificá que sea un Excel válido.');}
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function _showImportPreview(records,tipo){
+  document.getElementById('importPreviewCount').textContent=records.length;
+  document.getElementById('importPreviewBody').innerHTML=records.slice(0,10).map(r=>`<tr><td style="padding:6px 8px;border-bottom:1px solid #f3f4f6;">${r.fecha}</td><td style="padding:6px 8px;border-bottom:1px solid #f3f4f6;font-family:monospace;font-size:11px;">${r.num}</td><td style="padding:6px 8px;border-bottom:1px solid #f3f4f6;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${r.nombre||'-'}</td><td style="padding:6px 8px;border-bottom:1px solid #f3f4f6;text-align:right;">${fmt(r.base)}</td><td style="padding:6px 8px;border-bottom:1px solid #f3f4f6;text-align:right;">${fmt(r.iva)}</td><td style="padding:6px 8px;border-bottom:1px solid #f3f4f6;text-align:right;font-weight:700;">${fmt(r.total)}</td></tr>`).join('');
+  const more=document.getElementById('importPreviewMore');
+  if(records.length>10){more.style.display='block';more.textContent=`... y ${records.length-10} registros más`;}else{more.style.display='none';}
+  window._importPending={records,tipo};
+  openM('mImportPreview');
+}
+
+function confirmarImport(){
+  const{records,tipo}=window._importPending||{};
+  if(!records)return;
+  if(tipo==='fv'){
+    const list=getFV();
+    records.forEach(r=>list.push({id:uid(),num:r.num,tipo:r.tipo,cliId:null,clienteNombre:r.nombre,fecha:r.fecha,fVenc:'',cond:'contado',fp:'transferencia',base:r.base,iva:r.iva,total:r.total,estado:'pendiente',pagos:[],notas:'',tieneAdjunto:false}));
+    dbS('fv',list); closeM('mImportPreview'); renderFV();
+  }else{
+    const list=getG();
+    records.forEach(r=>list.push({id:uid(),fecha:r.fecha,num:r.num,prov:r.nombre,cat:'otros',fp:'transferencia',base:r.base,iva:r.iva,total:r.total,concepto:'',notas:'',tieneAdjunto:false}));
+    dbS('g',list); closeM('mImportPreview'); renderGas();
+  }
+  alert(`✅ Se importaron ${records.length} registros correctamente.`);
+  window._importPending=null;
+}
+
+// ===================================================================
 // SEGUIMIENTO DEL CLIENTE
 // ===================================================================
 let _avanceData = null;
@@ -2280,14 +2388,34 @@ function renderAvancesHTML(avances){
 }
 
 function renderMensajesHTML(mensajes){
-  if(!mensajes||!mensajes.length) return '';
-  return mensajes.map(m=>`<div style="background:${m.leido?'#f9fafb':'#eff6ff'};border:1px solid ${m.leido?'#f3f4f6':'#bfdbfe'};border-radius:8px;padding:10px 12px;margin-bottom:8px;"><div style="font-size:13px;color:#374151;margin-bottom:4px;">${m.texto||''}</div><div style="display:flex;justify-content:space-between;align-items:center;"><span style="font-size:11px;color:#9ca3af;">${fmtDate(m.fecha)}</span>${!m.leido?`<button onclick="marcarMensajeLeido('${m.id}')" style="font-size:11px;color:#2563eb;background:none;border:none;cursor:pointer;padding:0;">Marcar leído</button>`:''}</div></div>`).join('');
+  if(!mensajes||!mensajes.length) return '<p style="color:#9ca3af;font-size:12px;text-align:center;padding:8px 0;">Sin mensajes aún.</p>';
+  return mensajes.map(m=>{
+    const esTaller = m.origen==='taller';
+    const bg = esTaller ? '#f0fdf4' : (m.leido?'#f9fafb':'#eff6ff');
+    const border = esTaller ? '#bbf7d0' : (m.leido?'#f3f4f6':'#bfdbfe');
+    const align = esTaller ? 'right' : 'left';
+    const label = esTaller ? '<span style="font-size:10px;font-weight:700;color:#16a34a;text-transform:uppercase;letter-spacing:0.4px;">Taller</span>' : '<span style="font-size:10px;font-weight:700;color:#2563eb;text-transform:uppercase;letter-spacing:0.4px;">Cliente</span>';
+    const leidoBtn = (!esTaller&&!m.leido) ? `<button onclick="marcarMensajeLeido('${m.id}')" style="font-size:11px;color:#2563eb;background:none;border:none;cursor:pointer;padding:0;">Marcar leído</button>` : '';
+    return `<div style="background:${bg};border:1px solid ${border};border-radius:8px;padding:10px 12px;margin-bottom:8px;text-align:${align};">${label}<div style="font-size:13px;color:#374151;margin:4px 0;">${m.texto||''}</div><div style="display:flex;justify-content:${esTaller?'flex-end':'space-between'};align-items:center;"><span style="font-size:11px;color:#9ca3af;">${fmtDate(m.fecha)}</span>${leidoBtn}</div></div>`;
+  }).join('');
 }
 
 function marcarMensajeLeido(msgId){
   const msgs = ordenActual.mensajesCliente||[];
   const m = msgs.find(x=>x.id===msgId); if(m) m.leido=true;
   document.getElementById('mensajesClienteList').innerHTML = renderMensajesHTML(msgs);
+  const list=getOrdenes(); const idx=list.findIndex(o=>o.id===ordenActual.id);
+  if(idx>=0){list[idx]=JSON.parse(JSON.stringify(ordenActual));dbS('ot',list);}
+}
+
+function responderCliente(){
+  const input = document.getElementById('respuestaTaller');
+  const txt = (input.value||'').trim(); if(!txt) return;
+  if(!ordenActual.mensajesCliente) ordenActual.mensajesCliente=[];
+  const msg = {id:uid(), texto:txt, fecha:today(), origen:'taller', leido:true};
+  ordenActual.mensajesCliente.push(msg);
+  document.getElementById('mensajesClienteList').innerHTML = renderMensajesHTML(ordenActual.mensajesCliente);
+  input.value='';
   const list=getOrdenes(); const idx=list.findIndex(o=>o.id===ordenActual.id);
   if(idx>=0){list[idx]=JSON.parse(JSON.stringify(ordenActual));dbS('ot',list);}
 }
@@ -2355,6 +2483,26 @@ function waLinkSeg(){
 // INIT
 // ===================================================================
 document.querySelectorAll('.modal-bg').forEach(m=>m.addEventListener('click',e=>{if(e.target===m)m.classList.remove('open');}));
+(async()=>{
+  const saved=localStorage.getItem('gp_cu');
+  if(!saved)return;
+  try{
+    FB_OK=initFirebase();
+    await loadAllData();
+    const parsed=JSON.parse(saved);
+    const users=getUsers();
+    const validUser=users.find(x=>x.name===parsed.name&&x.pass===parsed.pass);
+    if(validUser){
+      CU=validUser;
+      document.getElementById('loginScreen').style.display='none';
+      document.getElementById('app').style.display='block';
+      setFbStatus(FB_OK);
+      initApp();
+      return;
+    }
+  }catch(e){}
+  localStorage.removeItem('gp_cu');
+})();
 if('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(()=>{});
 let deferredPrompt;
 window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferredPrompt=e;const btn=document.createElement('button');btn.textContent='📲 Instalar app';btn.style.cssText='position:fixed;bottom:20px;right:20px;background:#fbbf24;color:#111;border:none;border-radius:10px;padding:10px 20px;font-weight:700;font-size:14px;cursor:pointer;z-index:9999;box-shadow:0 4px 12px rgba(0,0,0,0.2);';btn.onclick=()=>{deferredPrompt.prompt();deferredPrompt.userChoice.then(()=>btn.remove());};document.body.appendChild(btn);setTimeout(()=>{if(document.body.contains(btn))btn.remove();},15000);});
