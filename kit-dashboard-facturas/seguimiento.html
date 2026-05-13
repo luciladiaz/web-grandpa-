@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Seguimiento de tu vehículo</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f3f4f6;min-height:100vh;}
+  .header{background:#111827;color:white;padding:20px 16px;text-align:center;}
+  .header h1{font-size:20px;font-weight:800;margin-bottom:4px;}
+  .header p{font-size:13px;color:#9ca3af;}
+  .container{max-width:640px;margin:0 auto;padding:16px;}
+  .card{background:white;border-radius:12px;padding:18px;margin-bottom:14px;box-shadow:0 1px 3px rgba(0,0,0,0.08);}
+  .card-title{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:#6b7280;margin-bottom:12px;}
+  .info-row{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #f3f4f6;font-size:14px;}
+  .info-row:last-child{border-bottom:none;}
+  .info-label{color:#6b7280;}
+  .info-val{font-weight:600;color:#111827;text-align:right;}
+  .badge{display:inline-block;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:700;}
+  .badge-gray{background:#f3f4f6;color:#374151;}
+  .badge-yellow{background:#fef3c7;color:#92400e;}
+  .badge-green{background:#dcfce7;color:#166534;}
+  .badge-blue{background:#dbeafe;color:#1e40af;}
+  .progress-bar{display:flex;gap:4px;margin-top:8px;}
+  .progress-step{flex:1;height:6px;border-radius:3px;background:#e5e7eb;}
+  .progress-step.done{background:#10b981;}
+  .progress-step.active{background:#f59e0b;}
+  .avance-item{display:flex;gap:12px;padding:12px 0;border-bottom:1px solid #f3f4f6;align-items:flex-start;}
+  .avance-item:last-child{border-bottom:none;}
+  .avance-img{width:80px;height:68px;object-fit:cover;border-radius:8px;flex-shrink:0;}
+  .avance-img-ph{width:80px;height:68px;background:#f3f4f6;border-radius:8px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:24px;}
+  .avance-desc{font-size:14px;font-weight:600;color:#111827;margin-bottom:3px;}
+  .avance-date{font-size:12px;color:#9ca3af;}
+  .fotos-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:4px;}
+  .fotos-grid img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:8px;cursor:pointer;}
+  textarea{width:100%;border:1px solid #e5e7eb;border-radius:8px;padding:10px 12px;font-size:14px;font-family:inherit;resize:vertical;min-height:80px;outline:none;}
+  textarea:focus{border-color:#3b82f6;box-shadow:0 0 0 3px rgba(59,130,246,0.1);}
+  .btn{display:block;width:100%;padding:13px;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;border:none;margin-top:10px;}
+  .btn-wa{background:#25d366;color:white;}
+  .btn-send{background:#3b82f6;color:white;}
+  .btn:active{opacity:0.85;}
+  .estado-desc{font-size:13px;color:#6b7280;margin-top:6px;}
+  .spinner{text-align:center;padding:40px;color:#9ca3af;font-size:14px;}
+  .error-box{background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:20px;text-align:center;color:#dc2626;}
+  .lightbox{position:fixed;inset:0;background:rgba(0,0,0,0.92);z-index:9999;display:none;align-items:center;justify-content:center;padding:16px;}
+  .lightbox.open{display:flex;}
+  .lightbox img{max-width:100%;max-height:90vh;border-radius:8px;}
+  .lightbox-close{position:absolute;top:16px;right:16px;color:white;font-size:28px;cursor:pointer;background:none;border:none;line-height:1;}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1 id="empNombre">Grandpa Estética Vehicular</h1>
+  <p id="empSub">Seguimiento de tu vehículo en tiempo real</p>
+</div>
+
+<div class="container">
+  <div id="mainContent"><div class="spinner">⏳ Cargando información...</div></div>
+</div>
+
+<div class="lightbox" id="lightbox" onclick="closeLightbox()">
+  <button class="lightbox-close" onclick="closeLightbox()">✕</button>
+  <img id="lightboxImg" src="" alt="" />
+</div>
+
+<script type="module">
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+import { getFirestore, collection, getDocs, doc, updateDoc, arrayUnion } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+
+const FIREBASE_CONFIG = {
+  apiKey: "IzaSyBd1AfjVyfNpoh57o0lTnMoueMxO7ojKt4",
+  authDomain: "grandpa-estetica-vehicular.firebaseapp.com",
+  projectId: "grandpa-estetica-vehicular",
+  storageBucket: "grandpa-estetica-vehicular.firebasestorage.app",
+  messagingSenderId: "728680200386",
+  appId: "1:728680200386:web:857f692ab38234d231a35b"
+};
+
+const app = initializeApp(FIREBASE_CONFIG);
+const firestore = getFirestore(app);
+
+const ESTADOS = {
+  ingresado: { label:'Ingresado', badge:'badge-gray', paso:0, desc:'Tu vehículo fue ingresado al taller.' },
+  en_proceso: { label:'En proceso', badge:'badge-yellow', paso:1, desc:'Estamos trabajando en tu vehículo.' },
+  listo:      { label:'Listo ✓', badge:'badge-green', paso:2, desc:'Tu vehículo está listo para retirar. ¡Te avisaremos!' },
+  entregado:  { label:'Entregado', badge:'badge-blue', paso:3, desc:'Vehículo entregado. Gracias por confiar en nosotros 🙌' },
+};
+
+function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,7); }
+function fmtDate(s){ if(!s) return ''; const d=new Date(s+'T12:00:00'); return d.toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit',year:'numeric'}); }
+function openLightbox(src){ document.getElementById('lightboxImg').src=src; document.getElementById('lightbox').classList.add('open'); }
+window.closeLightbox = ()=>{ document.getElementById('lightbox').classList.remove('open'); };
+
+const params = new URLSearchParams(location.search);
+const KEY = params.get('k');
+let ORDEN = null;
+let ORDEN_DOC_ID = null;
+
+async function findOrden(){
+  if(!KEY) return null;
+  const snap = await getDocs(collection(firestore,'ot'));
+  for(const d of snap.docs){
+    const data = d.data();
+    if(data.seguimientoKey === KEY){
+      ORDEN_DOC_ID = d.id;
+      return data;
+    }
+  }
+  return null;
+}
+
+async function init(){
+  try {
+    ORDEN = await findOrden();
+    if(!ORDEN){ showError('No se encontró la orden de trabajo. Verificá el link.'); return; }
+    render();
+  } catch(e){
+    showError('Error al cargar la información. Intentá nuevamente más tarde.');
+  }
+}
+
+function showError(msg){
+  document.getElementById('mainContent').innerHTML = `<div class="error-box">⚠️ ${msg}</div>`;
+}
+
+function render(){
+  const o = ORDEN;
+  const est = ESTADOS[o.estado] || ESTADOS.ingresado;
+  const avances = o.avances || [];
+  const fotos = o.fotos || [];
+
+  const stepsHTML = `<div class="progress-bar">
+    ${['Ingresado','En proceso','Listo','Entregado'].map((s,i)=>`<div class="progress-step ${i<est.paso?'done':i===est.paso?'active':''}" title="${s}"></div>`).join('')}
+  </div>`;
+
+  const fotosHTML = fotos.length ? `
+    <div class="card">
+      <div class="card-title">📷 Fotos de ingreso</div>
+      <div class="fotos-grid">${fotos.map(f=>`<img src="${f.url||f}" alt="Foto" onclick="openLightbox(this.src)" onerror="this.style.display='none'" />`).join('')}</div>
+    </div>` : '';
+
+  const avancesHTML = avances.length ? avances.map(a=>`
+    <div class="avance-item">
+      ${a.foto?`<img class="avance-img" src="${a.foto}" onclick="openLightbox(this.src)" onerror="this.parentElement.querySelector('.avance-img-ph') && (this.style.display='none')" />`:`<div class="avance-img-ph">📸</div>`}
+      <div>
+        <div class="avance-desc">${a.desc||''}</div>
+        <div class="avance-date">${fmtDate(a.fecha)}</div>
+      </div>
+    </div>`).join('') : '<p style="color:#9ca3af;font-size:13px;text-align:center;padding:12px 0;">Sin actualizaciones aún.</p>';
+
+  document.getElementById('mainContent').innerHTML = `
+    <div class="card">
+      <div class="card-title">🚗 Tu vehículo</div>
+      <div class="info-row"><span class="info-label">Propietario</span><span class="info-val">${o.clienteNombre||'-'}</span></div>
+      <div class="info-row"><span class="info-label">Vehículo</span><span class="info-val">${[o.marca,o.modelo,o.color].filter(Boolean).join(' ')||'-'}</span></div>
+      <div class="info-row"><span class="info-label">Patente</span><span class="info-val" style="font-family:monospace;">${o.patente||'-'}</span></div>
+      <div class="info-row"><span class="info-label">Orden N°</span><span class="info-val" style="font-family:monospace;">${o.num||'-'}</span></div>
+      <div class="info-row"><span class="info-label">Fecha de ingreso</span><span class="info-val">${fmtDate(o.fecha)}</span></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">📋 Estado actual</div>
+      <span class="badge ${est.badge}">${est.label}</span>
+      ${stepsHTML}
+      <div class="estado-desc">${est.desc}</div>
+    </div>
+
+    ${fotosHTML}
+
+    <div class="card">
+      <div class="card-title">🔧 Avances del trabajo</div>
+      ${avancesHTML}
+    </div>
+
+    <div class="card">
+      <div class="card-title">💬 Envianos un mensaje</div>
+      <textarea id="msgTexto" placeholder="Escribí tu consulta o comentario..."></textarea>
+      <button class="btn btn-send" onclick="enviarMensaje()">📨 Enviar mensaje</button>
+      <button class="btn btn-wa" onclick="enviarWA()" style="margin-top:8px;">📱 Consultar por WhatsApp</button>
+    </div>
+  `;
+}
+
+window.openLightbox = openLightbox;
+
+window.enviarMensaje = async function(){
+  const txt = (document.getElementById('msgTexto').value||'').trim();
+  if(!txt){ alert('Escribí un mensaje antes de enviar.'); return; }
+  if(!ORDEN_DOC_ID){ alert('Error al identificar la orden.'); return; }
+  const btn = document.querySelector('.btn-send');
+  btn.textContent='⏳ Enviando...'; btn.disabled=true;
+  try {
+    const msg = { id:uid(), texto:txt, fecha:new Date().toISOString().split('T')[0], leido:false };
+    await updateDoc(doc(firestore,'ot',ORDEN_DOC_ID), { mensajesCliente: arrayUnion(msg) });
+    document.getElementById('msgTexto').value='';
+    alert('Mensaje enviado. Te responderemos a la brevedad.');
+
+    // Notificar al taller por WA
+    const cfgSnap = await getDocs(collection(firestore,'cfg'));
+    let telTaller = '';
+    cfgSnap.forEach(d=>{ const data=d.data(); if(data.tel) telTaller=data.tel; });
+    if(telTaller){
+      const waMsg = `💬 Nuevo mensaje del cliente en la orden ${ORDEN.num||''}:\n\n"${txt}"\n\n🚗 ${ORDEN.clienteNombre||''} — ${ORDEN.patente||''}`;
+      window.open('https://wa.me/549'+telTaller.replace(/\D/g,'')+'?text='+encodeURIComponent(waMsg),'_blank');
+    }
+  } catch(e){
+    alert('Error al enviar el mensaje. Intentá de nuevo.');
+  }
+  btn.textContent='📨 Enviar mensaje'; btn.disabled=false;
+};
+
+window.enviarWA = async function(){
+  let telTaller = '';
+  try {
+    const cfgSnap = await getDocs(collection(firestore,'cfg'));
+    cfgSnap.forEach(d=>{ const data=d.data(); if(data.tel) telTaller=data.tel; });
+  } catch(e){}
+  if(!telTaller){ alert('No hay número de WhatsApp configurado.'); return; }
+  const txt = (document.getElementById('msgTexto').value||'').trim();
+  const msg = `Hola! Soy ${ORDEN.clienteNombre||'un cliente'}. Mi vehículo es ${ORDEN.marca||''} ${ORDEN.modelo||''} (${ORDEN.patente||''}) — Orden ${ORDEN.num||''}.${txt?'\n\n'+txt:''}`;
+  window.open('https://wa.me/549'+telTaller.replace(/\D/g,'')+'?text='+encodeURIComponent(msg),'_blank');
+};
+
+init();
+</script>
+</body>
+</html>
