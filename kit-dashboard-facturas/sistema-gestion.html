@@ -2295,9 +2295,16 @@ function waConfirmTurno(id){
 // IMPORTADOR AFIP (Excel / CSV)
 // ===================================================================
 function _normCol(s){ return String(s||'').toLowerCase().trim().replace(/\s+/g,' ').normalize('NFD').replace(/[̀-ͯ]/g,''); }
-function _parseFechaAFIP(s){ const str=String(s||'').trim(); if(str.includes('/')){const[d,m,y]=str.split('/');return`${y}-${m.padStart(2,'0')}-${d.padStart(2,'0')}`;}return str; }
+function _parseFechaAFIP(s){
+  if(!s) return '';
+  const str = String(s).trim();
+  if(str.includes('/')){ const[d,m,y]=str.split('/'); return`${y}-${m.padStart(2,'0')}-${d.padStart(2,'0')}`; }
+  // Excel date serial
+  if(!isNaN(str)){ const d=XLSX.SSF.parse_date_code(Number(str)); return d?`${d.y}-${String(d.m).padStart(2,'0')}-${String(d.d).padStart(2,'0')}`:''; }
+  return str;
+}
 function _afipNum(pv,num){ return`${String(pv||0).padStart(5,'0')}-${String(num||0).padStart(8,'0')}`; }
-function _afipTipo(s){ const m=String(s||'').match(/\b([ABC])\b/i); return m?m[1].toUpperCase():'B'; }
+function _afipTipo(s){ const m=String(s||'').match(/[ABC]/i); return m?m[0].toUpperCase():'B'; }
 
 function handleImportAFIP(input, tipo){
   const file=input.files[0]; if(!file)return;
@@ -2306,39 +2313,50 @@ function handleImportAFIP(input, tipo){
   reader.onload=e=>{
     try{
       const data=new Uint8Array(e.target.result);
-      const wb=XLSX.read(data,{type:'array'});
+      const wb=XLSX.read(data,{type:'array',cellDates:false});
       const ws=wb.Sheets[wb.SheetNames[0]];
-      const rows=XLSX.utils.sheet_to_json(ws,{defval:''});
+
+      // AFIP a veces tiene filas de metadata antes de los headers — buscar fila con "Fecha"
+      const rawRows=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
+      let headerIdx=0;
+      for(let i=0;i<Math.min(rawRows.length,10);i++){
+        const row=rawRows[i].map(c=>_normCol(String(c)));
+        if(row.some(c=>c==='fecha')){headerIdx=i;break;}
+      }
+      const rows=XLSX.utils.sheet_to_json(ws,{defval:'',range:headerIdx});
       if(!rows.length){alert('El archivo está vacío.');return;}
 
       const keyMap={};
       Object.keys(rows[0]).forEach(k=>{keyMap[_normCol(k)]=k;});
-      const find=(...names)=>{for(const n of names){const f=Object.keys(keyMap).find(k=>k.includes(_normCol(n)));if(f)return keyMap[f];}return null;};
+      const find=(...names)=>{for(const n of names){const norm=_normCol(n);const f=Object.keys(keyMap).find(k=>k.includes(norm));if(f)return keyMap[f];}return null;};
 
       const cFecha=find('fecha');
       const cPV=find('punto de venta','punto venta');
-      const cNum=find('numero desde','número desde');
+      const cNum=find('numero desde','numero hasta');
       const cTipo=find('tipo');
       const cNeto=find('neto gravado total');
       const cIVA=find('total iva');
-      const cTotal=find('imp. total','importe total');
-      const cNombre=tipo==='fv'?find('denominacion receptor','denominación receptor'):find('denominacion emisor','denominación emisor');
+      const cTotal=find('imp. total','imp total','importe total');
+      const cNombre=tipo==='fv'?find('denominacion receptor','razon social receptor','receptor'):find('denominacion emisor','razon social emisor','emisor');
 
-      if(!cFecha||!cTotal){alert('No se reconoció el formato AFIP.\nVerificá que sea el archivo de Comprobantes Emitidos/Recibidos.');return;}
+      if(!cFecha||!cTotal){
+        alert('No se reconocieron las columnas del archivo.\n\nColumnas detectadas:\n'+Object.keys(keyMap).slice(0,8).join(', '));
+        return;
+      }
 
       const records=rows.map(r=>({
         fecha:_parseFechaAFIP(r[cFecha]),
         num:_afipNum(r[cPV],r[cNum]),
         tipo:_afipTipo(r[cTipo]),
         nombre:String(r[cNombre]||'').trim(),
-        base:parseFloat(r[cNeto])||0,
-        iva:parseFloat(r[cIVA])||0,
-        total:parseFloat(r[cTotal])||0,
+        base:parseFloat(String(r[cNeto]||'').replace(',','.'))||0,
+        iva:parseFloat(String(r[cIVA]||'').replace(',','.'))||0,
+        total:parseFloat(String(r[cTotal]||'').replace(',','.'))||0,
       })).filter(r=>r.fecha&&r.total);
 
-      if(!records.length){alert('No se encontraron registros válidos.');return;}
+      if(!records.length){alert('No se encontraron registros válidos en el archivo.');return;}
       _showImportPreview(records,tipo);
-    }catch(err){alert('Error al leer el archivo. Verificá que sea un Excel válido.');}
+    }catch(err){console.error(err);alert('Error al leer el archivo. Verificá que sea un Excel (.xlsx) válido.');}
   };
   reader.readAsArrayBuffer(file);
 }
