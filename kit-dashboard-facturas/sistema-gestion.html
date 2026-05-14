@@ -1318,7 +1318,17 @@ function calcFV2(){const tot=fviData.reduce((s,it)=>s+(it.precio*(it.qty||1)),0)
 function saveFV(){if(!document.getElementById('fvCli').value){alert('Seleccioná un cliente');return;}if(!fviData.length){alert('Agregá al menos un item');return;}const fecha=document.getElementById('fvFecha').value;const cond=document.getElementById('fvCond').value;const fVenc=cond==='30dias'?addDays(fecha,30):fecha;const tot=fviData.reduce((s,it)=>s+(it.precio*(it.qty||1)),0);const sub=tot/1.21;const list=getFV();const editId=document.getElementById('fvId').value;const prevFac=editId?list.find(f=>f.id===editId):null;const obj={id:editId||uid(),num:document.getElementById('fvNum').value,tipo:document.getElementById('fvTipo').value,fecha,fVenc,cliId:document.getElementById('fvCli').value,cond,fp:document.getElementById('fvFP').value,items:[...fviData],subtotal:Math.round(sub),iva:Math.round(tot-sub),total:Math.round(tot),pagos:prevFac?prevFac.pagos||[]:[],estado:'pendiente',tieneAdjunto:!!(window._fvAdjData||(prevFac&&prevFac.tieneAdjunto))};obj.estado=calcEstado(obj);if(editId){const i=list.findIndex(f=>f.id===editId);list[i]=obj;}else{list.push(obj);}dbS('fv',list);if(window._fvAdjData){saveAdjuntoLocal(obj.id,window._fvAdjData);window._fvAdjData=null;}closeM('mFV');renderFV();checkAlertas();}
 function openMPago(facId){const f=getFV().find(x=>x.id===facId);if(!f)return;const cob=(f.pagos||[]).reduce((s,p)=>s+p.monto,0);const saldo=f.total-cob;document.getElementById('pgFacId').value=facId;document.getElementById('pgFecha').value=today();document.getElementById('pgMonto').value=saldo;document.getElementById('pgFP').value=f.fp||'transferencia';document.getElementById('pagoInfo').innerHTML=`<div style="display:flex;justify-content:space-between;margin-bottom:6px;"><span style="color:#6b7280;font-size:13px;">Total factura</span><strong>${fmt(f.total)}</strong></div><div style="display:flex;justify-content:space-between;margin-bottom:6px;"><span style="color:#6b7280;font-size:13px;">Ya cobrado</span><strong style="color:#16a34a;">${fmt(cob)}</strong></div><div style="display:flex;justify-content:space-between;"><span style="color:#6b7280;font-size:13px;">Saldo pendiente</span><strong style="color:#d97706;font-size:18px;">${fmt(saldo)}</strong></div>`;_pagoRetData=[];renderPagoRets();document.getElementById('pgRetTotal').textContent='';openM('mPago');}
 function savePago(){const facId=document.getElementById('pgFacId').value;const monto=parseFloat(document.getElementById('pgMonto').value)||0;if(!monto){alert('Ingresá un monto');return;}const list=getFV();const f=list.find(x=>x.id===facId);if(!f)return;f.pagos=f.pagos||[];const rets=_pagoRetData.filter(r=>r.importe>0);f.pagos.push({fecha:document.getElementById('pgFecha').value,monto,fp:document.getElementById('pgFP').value,...(rets.length?{retenciones:rets}:{})});f.estado=calcEstado(f);dbS('fv',list);closeM('mPago');renderFV();checkAlertas();}
-function detallePagos(id){const f=getFV().find(x=>x.id===id);if(!f)return;const cob=(f.pagos||[]).reduce((s,p)=>s+p.monto,0);const rows=(f.pagos||[]).length?(f.pagos||[]).map(p=>`<tr><td style="padding:10px;">${fmtDate(p.fecha)}</td><td style="padding:10px;text-transform:capitalize;">${p.fp}</td><td style="padding:10px;text-align:right;font-weight:600;color:#16a34a;">${fmt(p.monto)}</td></tr>`).join(''):'<tr><td colspan="3" style="text-align:center;color:#9ca3af;padding:20px;">Sin pagos</td></tr>';const w=window.open('','_blank','width=520,height=500');w.document.write(`<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>Pagos</title><style>body{font-family:Segoe UI,sans-serif;padding:30px;color:#111;}table{width:100%;border-collapse:collapse;}th{background:#111;color:#fff;padding:10px;text-align:left;}td{border-bottom:1px solid #f3f4f6;}</style></head><body><h2>Factura ${f.num} — ${cliNom(f.cliId,f.clienteNombre)}</h2><p>Total: <strong>${fmt(f.total)}</strong> | Cobrado: <strong style="color:green">${fmt(cob)}</strong> | Saldo: <strong style="color:orange">${fmt(f.total-cob)}</strong></p><table><thead><tr><th>Fecha</th><th>Forma</th><th>Monto</th></tr></thead><tbody>${rows}</tbody></table></body></html>`);w.document.close();}
+function detallePagos(id){
+  const f=getFV().find(x=>x.id===id);if(!f)return;
+  const cob=(f.pagos||[]).reduce((s,p)=>s+p.monto,0);
+  const rows=(f.pagos||[]).length?(f.pagos||[]).map(p=>`<tr><td style="padding:10px;">${fmtDate(p.fecha)}</td><td style="padding:10px;text-transform:capitalize;">${p.fp}</td><td style="padding:10px;text-align:right;font-weight:600;color:#16a34a;">${fmt(p.monto)}</td></tr>`).join(''):'<tr><td colspan="3" style="text-align:center;color:#9ca3af;padding:20px;">Sin pagos registrados</td></tr>';
+  const fr=(label,val)=>val>0?`<tr><td style="padding:6px 10px;color:#374151;">${label}</td><td style="padding:6px 10px;text-align:right;font-weight:600;">${fmt(val)}</td></tr>`:'';
+  const hasFiscal=f.neto21>0||f.neto105>0||f.neto27>0||f.iva21>0||f.noGravado>0||f.exento>0;
+  const fiscalHTML=hasFiscal?`<h3 style="margin:24px 0 10px;font-size:15px;border-bottom:2px solid #111;padding-bottom:6px;">Detalle Fiscal</h3><table style="width:100%;border-collapse:collapse;">${fr('Neto Grav. IVA 0%',f.neto0)}${fr('Neto Grav. IVA 2,5%',f.neto25)}${fr('IVA 2,5%',f.iva25)}${fr('Neto Grav. IVA 5%',f.neto5)}${fr('IVA 5%',f.iva5)}${fr('Neto Grav. IVA 10,5%',f.neto105)}${fr('IVA 10,5%',f.iva105)}${fr('Neto Grav. IVA 21%',f.neto21)}${fr('IVA 21%',f.iva21)}${fr('Neto Grav. IVA 27%',f.neto27)}${fr('IVA 27%',f.iva27)}${fr('No Gravado',f.noGravado)}${fr('Exento',f.exento)}${fr('Otros Tributos',f.otrosTrib)}<tr style="border-top:2px solid #111;"><td style="padding:8px 10px;font-weight:700;">TOTAL IVA</td><td style="padding:8px 10px;text-align:right;font-weight:700;">${fmt(f.iva)}</td></tr><tr><td style="padding:8px 10px;font-weight:800;font-size:15px;">TOTAL FACTURA</td><td style="padding:8px 10px;text-align:right;font-weight:800;font-size:15px;">${fmt(f.total)}</td></tr></table>`:`<p style="color:#6b7280;font-size:13px;margin-top:16px;">Sin detalle fiscal discriminado. Importá desde AFIP para obtenerlo.</p>`;
+  const w=window.open('','_blank','width=580,height:650');
+  w.document.write(`<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>Detalle Factura</title><style>body{font-family:Segoe UI,sans-serif;padding:30px;color:#111;}table{width:100%;border-collapse:collapse;}th{background:#111;color:#fff;padding:10px;text-align:left;}td{border-bottom:1px solid #f3f4f6;}@media print{button{display:none}}</style></head><body><div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px;"><div><h2 style="margin:0;">Factura ${f.num}</h2><p style="margin:4px 0;color:#6b7280;">${cliNom(f.cliId,f.clienteNombre)} &nbsp;·&nbsp; ${fmtDate(f.fecha)}</p></div><button onclick="window.print()" style="background:#111;color:#fff;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;">🖨️ Imprimir</button></div><p style="background:#f9fafb;border-radius:8px;padding:12px;font-size:14px;">Total: <strong>${fmt(f.total)}</strong> &nbsp;|&nbsp; Cobrado: <strong style="color:green">${fmt(cob)}</strong> &nbsp;|&nbsp; Saldo: <strong style="color:${f.total-cob>0?'orange':'green'}">${fmt(f.total-cob)}</strong></p>${fiscalHTML}<h3 style="margin:24px 0 10px;font-size:15px;border-bottom:2px solid #111;padding-bottom:6px;">Pagos registrados</h3><table><thead><tr><th>Fecha</th><th>Forma de pago</th><th>Monto</th></tr></thead><tbody>${rows}</tbody></table></body></html>`);
+  w.document.close();
+}
 
 // ===================================================================
 // COBRANZAS
@@ -1957,11 +1967,11 @@ function renderGas(){
     </div>
   </div>
   <div class="card"><table>
-    <thead><tr><th>Fecha</th><th>Categoría</th><th>Proveedor</th><th>N° Comp.</th><th>Forma pago</th><th>Total</th><th></th></tr></thead>
+    <thead><tr><th>Fecha</th><th>Categoría</th><th>Proveedor</th><th>N° Comp.</th><th>Forma pago</th><th>Total</th><th title="Comprobante adjunto">📎</th><th></th></tr></thead>
     <tbody id="tGas">${rowsGas(list)}</tbody>
   </table></div>`;
 }
-function rowsGas(list){if(!list.length)return'<tr><td colspan="7" style="text-align:center;color:#9ca3af;padding:30px;">Sin gastos</td></tr>';return[...list].reverse().map(g=>`<tr><td>${fmtDate(g.fecha)}</td><td><span class="badge b-gray" style="font-size:11px;">${CAT_GASTO[g.cat]||g.cat}</span></td><td style="font-weight:600;">${g.prov}</td><td style="font-family:monospace;font-size:12px;">${g.num||'-'}</td><td style="text-transform:capitalize;">${g.fp||'-'}</td><td style="font-weight:700;color:#dc2626;">${fmt(g.total)}</td><td style="white-space:nowrap;"><button onclick="editGasto('${g.id}')" style="color:#d97706;background:none;border:none;cursor:pointer;font-size:13px;font-weight:600;margin-right:6px;">Editar</button>${g.tieneAdjunto?`<button onclick="verAdjuntoFac('${g.id}')" title="Ver adjunto" style="color:#7c3aed;background:none;border:none;cursor:pointer;font-size:13px;margin-right:6px;">📎</button>`:''} ${CU.role==='admin'?`<button onclick="delGasto('${g.id}')" style="color:#ef4444;background:none;border:none;cursor:pointer;font-size:13px;">Eliminar</button>`:''}</td></tr>`).join('');}
+function rowsGas(list){if(!list.length)return'<tr><td colspan="8" style="text-align:center;color:#9ca3af;padding:30px;">Sin gastos</td></tr>';return[...list].reverse().map(g=>`<tr><td>${fmtDate(g.fecha)}</td><td><span class="badge b-gray" style="font-size:11px;">${CAT_GASTO[g.cat]||g.cat}</span></td><td style="font-weight:600;">${g.prov}</td><td style="font-family:monospace;font-size:12px;">${g.num||'-'}</td><td style="text-transform:capitalize;">${g.fp||'-'}</td><td style="font-weight:700;color:#dc2626;">${fmt(g.total)}</td><td style="text-align:center;font-size:16px;">${g.tieneAdjunto?`<span title="Comprobante adjunto" style="color:#16a34a;cursor:pointer;" onclick="verAdjuntoFac('${g.id}')">✅</span>`:'<span title="Sin comprobante adjunto" style="color:#d1d5db;">⬜</span>'}</td><td style="white-space:nowrap;"><button onclick="editGasto('${g.id}')" style="color:#d97706;background:none;border:none;cursor:pointer;font-size:13px;font-weight:600;margin-right:6px;">Editar</button>${CU.role==='admin'?`<button onclick="delGasto('${g.id}')" style="color:#ef4444;background:none;border:none;cursor:pointer;font-size:13px;">Eliminar</button>`:''}</td></tr>`).join('');}
 function _resetGAdj(){_gAdjData=null;document.getElementById('gAdjNombre').textContent='';document.getElementById('btnLeerPDFGasto').style.display='none';document.getElementById('btnVerAdjGasto').style.display='none';document.getElementById('gAdjFile').value='';}
 function openMGasto(){document.getElementById('gId').value='';document.getElementById('gFecha').value=today();document.getElementById('gCat').value='productos_limpieza';document.getElementById('gProv').value='';document.getElementById('gNum').value='';document.getElementById('gFP').value='transferencia';document.getElementById('gSub').value='';document.getElementById('gIvaPct').value='0.21';document.getElementById('gTot').textContent='$0';document.getElementById('mGTit').textContent='Nuevo Gasto';_resetGAdj();openM('mGasto');}
 function editGasto(id){const g=getG().find(x=>x.id===id);if(!g)return;document.getElementById('gId').value=id;document.getElementById('gFecha').value=g.fecha;document.getElementById('gCat').value=g.cat;document.getElementById('gProv').value=g.prov;document.getElementById('gNum').value=g.num||'';document.getElementById('gFP').value=g.fp||'transferencia';document.getElementById('gSub').value=g.sub||'';document.getElementById('gIvaPct').value=g.ivaPct||'0.21';document.getElementById('gTot').textContent=fmt(g.total);document.getElementById('mGTit').textContent='Editar Gasto';_resetGAdj();openM('mGasto');}
@@ -2343,20 +2353,39 @@ function handleImportAFIP(input, tipo){
       const cIVA=find('total iva');
       const cTotal=find('imp. total','imp total','importe total');
       const cNombre=tipo==='fv'?find('denominacion receptor','razon social receptor','receptor'):find('denominacion emisor','razon social emisor','emisor');
+      const cNeto0=find('neto grav. iva 0','neto grav iva 0');
+      const cNeto25=find('neto grav. iva 2','neto grav iva 2');const cIva25=find('iva 2,5','iva 2.5');
+      const cNeto5=find('neto grav. iva 5','neto grav iva 5');const cIva5=find('iva 5%','iva 5,');
+      const cNeto105=find('neto grav. iva 10','neto grav iva 10');const cIva105=find('iva 10,5','iva 10.5');
+      const cNeto21=find('neto grav. iva 21','neto grav iva 21');const cIva21=find('iva 21');
+      const cNeto27=find('neto grav. iva 27','neto grav iva 27');const cIva27=find('iva 27');
+      const cNoGrav=find('total no gravado','no gravado');
+      const cExento=find('op. exentas','exentas','exento');
+      const cOtrosTrib=find('otros tributos');
 
       if(!cFecha||!cTotal){
         alert('No se reconocieron las columnas del archivo.\n\nColumnas detectadas:\n'+Object.keys(keyMap).slice(0,8).join(', '));
         return;
       }
 
+      const pf=v=>parseFloat(String(v||'').replace(',','.'))||0;
       const records=rows.map(r=>({
         fecha:_parseFechaAFIP(r[cFecha]),
         num:_afipNum(r[cPV],r[cNum]),
         tipo:_afipTipo(r[cTipo]),
         nombre:String(r[cNombre]||'').trim(),
-        base:parseFloat(String(r[cNeto]||'').replace(',','.'))||0,
-        iva:parseFloat(String(r[cIVA]||'').replace(',','.'))||0,
-        total:parseFloat(String(r[cTotal]||'').replace(',','.'))||0,
+        base:pf(r[cNeto]),
+        iva:pf(r[cIVA]),
+        total:pf(r[cTotal]),
+        neto0:pf(r[cNeto0]),
+        neto25:pf(r[cNeto25]),iva25:pf(r[cIva25]),
+        neto5:pf(r[cNeto5]),iva5:pf(r[cIva5]),
+        neto105:pf(r[cNeto105]),iva105:pf(r[cIva105]),
+        neto21:pf(r[cNeto21]),iva21:pf(r[cIva21]),
+        neto27:pf(r[cNeto27]),iva27:pf(r[cIva27]),
+        noGravado:pf(r[cNoGrav]),
+        exento:pf(r[cExento]),
+        otrosTrib:pf(r[cOtrosTrib]),
       })).filter(r=>r.fecha&&r.total);
 
       if(!records.length){alert('No se encontraron registros válidos en el archivo.');return;}
@@ -2380,11 +2409,13 @@ function confirmarImport(){
   if(!records)return;
   if(tipo==='fv'){
     const list=getFV();
-    records.forEach(r=>list.push({id:uid(),num:r.num,tipo:r.tipo,cliId:null,clienteNombre:r.nombre,fecha:r.fecha,fVenc:'',cond:'contado',fp:'transferencia',base:r.base,iva:r.iva,total:r.total,estado:'pendiente',pagos:[],notas:'',tieneAdjunto:false}));
+    const fiscal=r=>({neto0:r.neto0,neto25:r.neto25,iva25:r.iva25,neto5:r.neto5,iva5:r.iva5,neto105:r.neto105,iva105:r.iva105,neto21:r.neto21,iva21:r.iva21,neto27:r.neto27,iva27:r.iva27,noGravado:r.noGravado,exento:r.exento,otrosTrib:r.otrosTrib});
+    records.forEach(r=>list.push({id:uid(),num:r.num,tipo:r.tipo,cliId:null,clienteNombre:r.nombre,fecha:r.fecha,fVenc:'',cond:'contado',fp:'transferencia',base:r.base,iva:r.iva,total:r.total,estado:'pendiente',pagos:[],notas:'',tieneAdjunto:false,...fiscal(r)}));
     dbS('fv',list); closeM('mImportPreview'); renderFV();
   }else{
     const list=getG();
-    records.forEach(r=>list.push({id:uid(),fecha:r.fecha,num:r.num,prov:r.nombre,cat:'otros',fp:'transferencia',base:r.base,iva:r.iva,total:r.total,concepto:'',notas:'',tieneAdjunto:false}));
+    const fiscal=r=>({neto0:r.neto0,neto25:r.neto25,iva25:r.iva25,neto5:r.neto5,iva5:r.iva5,neto105:r.neto105,iva105:r.iva105,neto21:r.neto21,iva21:r.iva21,neto27:r.neto27,iva27:r.iva27,noGravado:r.noGravado,exento:r.exento,otrosTrib:r.otrosTrib});
+    records.forEach(r=>list.push({id:uid(),fecha:r.fecha,num:r.num,prov:r.nombre,cat:'otros',fp:'transferencia',base:r.base,iva:r.iva,total:r.total,concepto:'',notas:'',tieneAdjunto:false,...fiscal(r)}));
     dbS('g',list); closeM('mImportPreview'); renderGas();
   }
   alert(`✅ Se importaron ${records.length} registros correctamente.`);
