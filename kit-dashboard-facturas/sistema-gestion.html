@@ -744,6 +744,7 @@ function initApp(){
 function navClick(id){closeSidebar();goTo(id);}
 
 function goTo(view){
+  cancelarSel();
   if(chatInterval){clearInterval(chatInterval);chatInterval=null;}
   document.querySelectorAll('.nav-item').forEach(el=>el.classList.remove('active'));
   const el=document.getElementById('nav_'+view); if(el)el.classList.add('active');
@@ -826,7 +827,7 @@ function renderCli(){
   document.getElementById('content').innerHTML=`
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;">
     <input placeholder="Buscar..." oninput="filtCli(this.value)" style="width:240px;border:1px solid #e5e7eb;border-radius:8px;padding:9px 12px;font-size:14px;" />
-    <button class="btn-gp" onclick="openMCli()">+ Nuevo Cliente</button>
+    <button class="btn-outline" onclick="activarSel('cli')" style="padding:9px 14px;font-size:14px;">☑️ Seleccionar</button><button class="btn-gp" onclick="openMCli()">+ Nuevo Cliente</button>
   </div>
   <div class="card"><table>
     <thead><tr><th>Nombre</th><th>Tipo</th><th>Documento</th><th>Celular</th><th>Email</th><th>Patente</th><th></th></tr></thead>
@@ -1265,7 +1266,7 @@ function renderPres(){
   document.getElementById('content').innerHTML=`
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;">
     <select onchange="filtPres(this.value)" style="border:1px solid #e5e7eb;border-radius:8px;padding:9px 12px;background:white;font-size:14px;"><option value="">Todos</option><option value="borrador">Borrador</option><option value="enviado">Enviado</option><option value="aceptado">Aceptado</option><option value="rechazado">Rechazado</option><option value="facturado">Facturado</option></select>
-    <button class="btn-gp" onclick="openMPres()">+ Nuevo Presupuesto</button>
+    <button class="btn-outline" onclick="activarSel('pres')" style="padding:9px 14px;font-size:14px;">☑️ Seleccionar</button><button class="btn-gp" onclick="openMPres()">+ Nuevo Presupuesto</button>
   </div>
   <div class="card"><table>
     <thead><tr><th>N°</th><th>Cliente</th><th>Vehículo</th><th>Fecha</th><th>Válido hasta</th><th>Total</th><th>Estado</th><th>Asesor</th><th></th></tr></thead>
@@ -1296,6 +1297,7 @@ function renderFV(){
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;">
     <select onchange="filtFV(this.value)" style="border:1px solid #e5e7eb;border-radius:8px;padding:9px 12px;background:white;font-size:14px;"><option value="">Todas</option><option value="pendiente">Pendiente</option><option value="cobro_parcial">Cobro parcial</option><option value="cobrada">Cobrada</option><option value="vencida">Vencida</option></select>
     <div style="display:flex;gap:8px;">
+      <button class="btn-outline" onclick="activarSel('fv')" style="padding:9px 14px;font-size:14px;">☑️ Seleccionar</button>
       <label class="btn-outline" style="cursor:pointer;padding:9px 16px;font-size:14px;font-weight:600;border-radius:8px;white-space:nowrap;">📥 Importar AFIP<input type="file" accept=".xlsx,.xls,.csv" style="display:none;" onchange="handleImportAFIP(this,'fv')" /></label>
       <button class="btn-gp" onclick="openMFV()">+ Nueva Factura</button>
     </div>
@@ -1369,7 +1371,7 @@ function renderRemitos(){
     <div style="display:flex;gap:10px;flex-wrap:wrap;">
       <input placeholder="Buscar cliente o número..." oninput="filtRemitos(this.value)" style="border:1px solid #e5e7eb;border-radius:8px;padding:9px 12px;font-size:14px;width:220px;" />
     </div>
-    <button class="btn-gp" onclick="openMRemito()">+ Nuevo Remito</button>
+    <button class="btn-outline" onclick="activarSel('remitos')" style="padding:9px 14px;font-size:14px;">☑️ Seleccionar</button><button class="btn-gp" onclick="openMRemito()">+ Nuevo Remito</button>
   </div>
   <div class="card"><table>
     <thead><tr><th>N°</th><th>Destinatario</th><th>Fecha</th><th>Referencia</th><th>Ítems</th><th>Emitido por</th><th></th></tr></thead>
@@ -1533,7 +1535,7 @@ function renderRecibos(){
     <div class="kpi" style="padding:10px 20px;"><span style="font-size:12px;color:#9ca3af;">Total recibido: </span><span style="font-size:20px;font-weight:800;color:#fbbf24;">${fmt(tot)}</span></div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;">
       <input placeholder="Buscar cliente o concepto..." oninput="filtRecibos(this.value)" style="border:1px solid #e5e7eb;border-radius:8px;padding:9px 12px;font-size:14px;width:240px;" />
-      <button class="btn-gp" onclick="openMRecibo()">+ Nuevo Recibo</button>
+      <button class="btn-outline" onclick="activarSel('recibos')" style="padding:9px 14px;font-size:14px;">☑️ Seleccionar</button><button class="btn-gp" onclick="openMRecibo()">+ Nuevo Recibo</button>
     </div>
   </div>
   <div class="card"><table>
@@ -1544,7 +1546,7 @@ function renderRecibos(){
 function rowsRecibos(list){
   const fpLbl={efectivo:'Efectivo',transferencia:'Transferencia',debito:'Déb.',credito:'Créd.',mercadopago:'MP',cheque:'Cheque'};
   if(!list.length)return'<tr><td colspan="7" style="text-align:center;color:#9ca3af;padding:30px;">Sin recibos emitidos</td></tr>';
-  return[...list].reverse().map(r=>`<tr>
+  return[...list].reverse().map(r=>`<tr data-id="${r.id}">
     <td style="font-family:monospace;font-weight:700;">${r.num}</td>
     <td style="font-weight:600;">${cliNom(r.cliId)}</td>
     <td>${fmtDate(r.fecha)}</td>
@@ -1962,6 +1964,7 @@ function renderGas(){
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;">
     <div class="kpi" style="padding:10px 20px;"><span style="font-size:12px;color:#9ca3af;">Total gastos: </span><span style="font-size:20px;font-weight:800;color:#f87171;">${fmt(tot)}</span></div>
     <div style="display:flex;gap:8px;">
+      <button class="btn-outline" onclick="activarSel('gas')" style="padding:9px 14px;font-size:14px;">☑️ Seleccionar</button>
       <label class="btn-outline" style="cursor:pointer;padding:9px 16px;font-size:14px;font-weight:600;border-radius:8px;white-space:nowrap;">📥 Importar AFIP<input type="file" accept=".xlsx,.xls,.csv" style="display:none;" onchange="handleImportAFIP(this,'gas')" /></label>
       <button class="btn-gp" onclick="openMGasto()">+ Nuevo Gasto</button>
     </div>
@@ -2307,6 +2310,65 @@ function waConfirmTurno(id){
 }
 
 // ===================================================================
+// SELECCIÓN MÚLTIPLE
+// ===================================================================
+let _sel = new Set(), _selCtx = '';
+const _selMeta = {
+  fv:      {get:getFV,       key:'fv',      render:renderFV,        label:'facturas de venta'},
+  gas:     {get:getG,        key:'g',       render:renderGas,       label:'gastos'},
+  ot:      {get:getOrdenes,  key:'ot',      render:renderOrdenes,   label:'órdenes de trabajo'},
+  cli:     {get:getCli,      key:'cli',     render:renderCli,       label:'clientes'},
+  pres:    {get:getPres,     key:'pres',    render:renderPres,      label:'presupuestos'},
+  recibos: {get:getRecibos,  key:'recibos', render:renderRecibos,   label:'recibos'},
+  remitos: {get:getRemitos,  key:'remitos', render:renderRemitos,   label:'remitos'},
+  turnos:  {get:getTurnos,   key:'turnos',  render:renderTurnos,    label:'turnos'},
+};
+
+function activarSel(ctx){
+  _selCtx=ctx; _sel.clear();
+  const bar=document.getElementById('selBar'); if(bar){bar.style.display='flex';}
+  const thead=document.querySelector('#content table thead tr');
+  if(thead&&!thead.querySelector('.sel-th')){const th=document.createElement('th');th.className='sel-th';thead.insertBefore(th,thead.firstChild);}
+  document.querySelectorAll('#content table tbody tr[data-id]').forEach(tr=>{
+    if(tr.querySelector('.sel-chk'))return;
+    const td=document.createElement('td');td.style.width='32px';
+    const chk=document.createElement('input');chk.type='checkbox';chk.className='sel-chk';
+    chk.style.cssText='width:15px;height:15px;cursor:pointer;';
+    chk.dataset.id=tr.dataset.id;
+    chk.onchange=e=>{if(e.target.checked)_sel.add(tr.dataset.id);else _sel.delete(tr.dataset.id);_updSel();};
+    td.appendChild(chk);tr.insertBefore(td,tr.firstChild);
+  });
+  _updSel();
+}
+
+function toggleSel(id,checked){if(checked)_sel.add(id);else _sel.delete(id);_updSel();}
+
+function selTodos(checked){
+  document.querySelectorAll('.sel-chk').forEach(chk=>{chk.checked=checked;if(checked)_sel.add(chk.dataset.id);else _sel.delete(chk.dataset.id);});
+  _updSel();
+}
+
+function _updSel(){
+  const count=document.getElementById('selCount');
+  if(count)count.textContent=_sel.size?`${_sel.size} seleccionado${_sel.size>1?'s':''}` :'';
+  const allChk=document.getElementById('selAllChk');
+  const total=document.querySelectorAll('.sel-chk').length;
+  if(allChk)allChk.checked=total>0&&_sel.size===total;
+}
+
+function eliminarSel(){
+  const meta=_selMeta[_selCtx]; if(!meta||!_sel.size)return;
+  if(!confirm(`¿Eliminar ${_sel.size} ${meta.label}?\nEsta acción no se puede deshacer.`))return;
+  const list=meta.get().filter(x=>!_sel.has(x.id));
+  dbS(meta.key,list); cancelarSel(); meta.render();
+}
+
+function cancelarSel(){
+  _sel.clear(); _selCtx='';
+  const bar=document.getElementById('selBar'); if(bar)bar.style.display='none';
+}
+
+// ===================================================================
 // IMPORTADOR AFIP (Excel / CSV)
 // ===================================================================
 function _normCol(s){ return String(s||'').toLowerCase().trim().replace(/\s+/g,' ').replace(/á/g,'a').replace(/é/g,'e').replace(/í/g,'i').replace(/ó/g,'o').replace(/ú/g,'u').replace(/ü/g,'u').replace(/ñ/g,'n'); }
@@ -2561,8 +2623,17 @@ if('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').cat
 let deferredPrompt;
 window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferredPrompt=e;const btn=document.createElement('button');btn.textContent='📲 Instalar app';btn.style.cssText='position:fixed;bottom:20px;right:20px;background:#fbbf24;color:#111;border:none;border-radius:10px;padding:10px 20px;font-weight:700;font-size:14px;cursor:pointer;z-index:9999;box-shadow:0 4px 12px rgba(0,0,0,0.2);';btn.onclick=()=>{deferredPrompt.prompt();deferredPrompt.userChoice.then(()=>btn.remove());};document.body.appendChild(btn);setTimeout(()=>{if(document.body.contains(btn))btn.remove();},15000);});
 </script>
+<div id="selBar" style="display:none;position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#111827;color:white;border-radius:12px;padding:12px 20px;gap:14px;align-items:center;z-index:9000;box-shadow:0 8px 28px rgba(0,0,0,0.4);white-space:nowrap;">
+  <label style="display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="checkbox" id="selAllChk" onchange="selTodos(this.checked)" style="width:16px;height:16px;" /> Todos</label>
+  <span id="selCount" style="font-size:14px;font-weight:600;"></span>
+  <button onclick="eliminarSel()" style="background:#ef4444;color:white;border:none;border-radius:8px;padding:8px 18px;font-weight:700;cursor:pointer;font-size:14px;">🗑️ Eliminar</button>
+  <button onclick="cancelarSel()" style="background:#374151;color:white;border:none;border-radius:8px;padding:8px 14px;cursor:pointer;font-size:14px;">✕ Cancelar</button>
+</div>
 </body>
 </html>
+
+
+
 
 
 
