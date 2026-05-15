@@ -123,6 +123,59 @@ function showError(msg){
   document.getElementById('mainContent').innerHTML = `<div class="error-box">⚠️ ${msg}</div>`;
 }
 
+const SERVICIOS_MAP = {
+  chapaPintura:'Chapa y pintura', equipamiento:'Equipamiento', lavadoTapizado:'Lavado de tapizado',
+  abrillantado:'Abrillantado', ceramico1:'Cerámico 1 año', ceramico3:'Cerámico 3 años', ceramico5:'Cerámico 5 años'
+};
+const TAREAS_MAP = {
+  lavadoDetalle:'Lavado al detalle', encerado:'Encerado', lavadoLlantas:'Lavado de llantas',
+  limpiezaTapizado:'Limpieza de tapizado', abrillantado2:'Abrillantado', correccionBarniz:'Corrección de barniz',
+  selladoCeramico:'Sellado cerámico', limpiezaBuches:'Limpieza de buches', limpiezaTecho:'Limpieza de techo',
+  pulidoOpticasDel:'Pulido ópticas del.', pulidoOpticasTra:'Pulido ópticas tra.', restauracionOpticas:'Restauración ópticas',
+  lavadoInterior:'Lavado det. de interior', limpiezaMotor:'Limpieza de motor', ploteo:'Ploteo / pintura',
+  desploteo:'Desploteo', cambioLuces:'Cambio de luces', pinturaLlantas:'Pintura en llantas',
+  despolarizar:'Despolarizar', mecanicaScaneo:'Mecánica / scaneo', cambioOpticas:'Cambio de ópticas'
+};
+
+function chip(txt){ return `<span style="display:inline-block;background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;border-radius:20px;padding:4px 12px;font-size:12px;font-weight:600;margin:3px 3px 3px 0;">${txt}</span>`; }
+
+function renderOTIngreso(o){
+  const srv = o.servicios || {};
+  const tar = o.tareas || {};
+  const servicios = Object.keys(SERVICIOS_MAP).filter(k=>srv[k]).map(k=>SERVICIOS_MAP[k]);
+  if(srv.otros) servicios.push(srv.otros);
+  const tareas = Object.keys(TAREAS_MAP).filter(k=>tar[k]).map(k=>TAREAS_MAP[k]);
+  ['custom1','custom2','custom3'].forEach(k=>{ if(tar[k]&&tar[k].trim()) tareas.push(tar[k]); });
+
+  const row = (lbl,val,mono)=>`<div class="info-row"><span class="info-label">${lbl}</span><span class="info-val"${mono?' style="font-family:monospace;"':''}>${val}</span></div>`;
+  const sec = (tit)=>`<div style="font-size:11px;font-weight:700;color:#374151;text-transform:uppercase;letter-spacing:0.5px;margin:14px 0 8px;">${tit}</div>`;
+
+  return `<div class="card">
+    <div class="card-title">📄 Orden de Trabajo de Ingreso — ${o.num||''}</div>
+
+    ${sec('Datos del cliente')}
+    ${row('Propietario', o.clienteNombre||'-')}
+    ${o.clienteDni ? row('DNI / CUIT', o.clienteDni, true) : ''}
+    ${o.clienteTelefono ? row('Teléfono', o.clienteTelefono) : ''}
+
+    ${sec('Datos del vehículo')}
+    ${row('Vehículo', [o.marca,o.modelo].filter(Boolean).join(' ')||'-')}
+    ${o.color ? row('Color', o.color) : ''}
+    ${o.km ? row('Kilometraje', Number(o.km).toLocaleString('es-AR')+' km') : ''}
+    ${o.patente ? row('Patente', o.patente, true) : ''}
+    ${o.nSerie ? row('N° de serie', o.nSerie, true) : ''}
+    ${o.combustible!=null ? row('Combustible', o.combustible+'%') : ''}
+
+    ${servicios.length ? `${sec('Servicios solicitados')}<div>${servicios.map(chip).join('')}</div>` : ''}
+
+    ${tareas.length ? `${sec('Tareas a realizar')}<div>${tareas.map(chip).join('')}</div>` : ''}
+
+    ${o.testigos ? `${sec('Testigos / Advertencias')}<div style="font-size:14px;color:#92400e;background:#fef3c7;border-radius:8px;padding:10px 12px;">${o.testigos}</div>` : ''}
+
+    ${o.observacionesTexto ? `${sec('Observaciones al ingreso')}<div style="font-size:14px;color:#111827;background:#f9fafb;border-radius:8px;padding:10px 12px;border:1px solid #e5e7eb;">${o.observacionesTexto}</div>` : ''}
+  </div>`;
+}
+
 function render(){
   const o = ORDEN;
   const est = ESTADOS[o.estado] || ESTADOS.ingresado;
@@ -149,10 +202,8 @@ function render(){
   document.getElementById('mainContent').innerHTML = `
     <div class="card">
       <div class="card-title">🚗 Tu vehículo</div>
-      <div class="info-row"><span class="info-label">Propietario</span><span class="info-val">${o.clienteNombre||'-'}</span></div>
       <div class="info-row"><span class="info-label">Vehículo</span><span class="info-val">${[o.marca,o.modelo,o.color].filter(Boolean).join(' ')||'-'}</span></div>
       <div class="info-row"><span class="info-label">Patente</span><span class="info-val" style="font-family:monospace;">${o.patente||'-'}</span></div>
-      <div class="info-row"><span class="info-label">Orden N°</span><span class="info-val" style="font-family:monospace;">${o.num||'-'}</span></div>
       <div class="info-row"><span class="info-label">Fecha de ingreso</span><span class="info-val">${fmtDate(o.fecha)}</span></div>
     </div>
 
@@ -162,6 +213,8 @@ function render(){
       ${stepsHTML}
       <div class="estado-desc">${est.desc}</div>
     </div>
+
+    ${renderOTIngreso(o)}
 
     ${fotosHTML}
 
