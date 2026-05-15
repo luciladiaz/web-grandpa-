@@ -139,6 +139,64 @@ const TAREAS_MAP = {
 
 function chip(txt){ return `<span style="display:inline-block;background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;border-radius:20px;padding:4px 12px;font-size:12px;font-weight:600;margin:3px 3px 3px 0;">${txt}</span>`; }
 
+function svgCocheStatic(danosZonas, danosZonasOtros){
+  const dz = danosZonas || {};
+  const dzo = danosZonasOtros || {};
+  const zones=[
+    {id:'pDel',lbl:'Paragolpes del.',x:65,y:8,w:70,h:16,rx:6},
+    {id:'capo',lbl:'Capó',x:50,y:28,w:100,h:60,rx:8},
+    {id:'gbdi',lbl:'G.B.D.Izq',x:22,y:32,w:24,h:55,rx:7},
+    {id:'gbdd',lbl:'G.B.D.Der',x:154,y:32,w:24,h:55,rx:7},
+    {id:'para',lbl:'Parabrisa',x:52,y:92,w:96,h:22,rx:4},
+    {id:'pdi',lbl:'P.Del.Izq',x:22,y:92,w:24,h:58,rx:5},
+    {id:'pdd',lbl:'P.Del.Der',x:154,y:92,w:24,h:58,rx:5},
+    {id:'techo',lbl:'Techo',x:52,y:118,w:96,h:76,rx:4},
+    {id:'pti',lbl:'P.Tra.Izq',x:22,y:154,w:24,h:58,rx:5},
+    {id:'ptd',lbl:'P.Tra.Der',x:154,y:154,w:24,h:58,rx:5},
+    {id:'luneta',lbl:'Luneta',x:52,y:198,w:96,h:22,rx:4},
+    {id:'gbti',lbl:'G.B.T.Izq',x:22,y:216,w:24,h:55,rx:7},
+    {id:'gbtd',lbl:'G.B.T.Der',x:154,y:216,w:24,h:55,rx:7},
+    {id:'baul',lbl:'Baúl',x:50,y:224,w:100,h:56,rx:8},
+    {id:'pTra',lbl:'Paragolpes tra.',x:65,y:284,w:70,h:16,rx:6}
+  ];
+  function getColor(id){
+    const v = dz[id];
+    if(!v||!v.length) return {fill:'#f3f4f6',stroke:'#9ca3af'};
+    if(v.includes('roto'))       return {fill:'#fecaca',stroke:'#ef4444'};
+    if(v.includes('abolladura')) return {fill:'#fed7aa',stroke:'#f97316'};
+    if(v.includes('rayon'))      return {fill:'#fef3c7',stroke:'#f59e0b'};
+    return {fill:'#ede9fe',stroke:'#7c3aed'};
+  }
+  const hasDanos = Object.keys(dz).some(k=>dz[k]&&dz[k].length);
+  if(!hasDanos) return '';
+  const svgZones = zones.map(z=>{
+    const c = getColor(z.id);
+    const v = dz[z.id]||[];
+    const otros = dzo[z.id]||'';
+    const label = v.length ? v.map(t=>({rayon:'Rayón',abolladura:'Abolladura',roto:'Roto',otros:'Otros'}[t]||t)).join(', ')+(otros?' ('+otros+')':'') : '';
+    const multi = v.length>1;
+    return `<g${label?` title="${z.lbl}: ${label}"`:''}><rect x="${z.x}" y="${z.y}" width="${z.w}" height="${z.h}" rx="${z.rx}" fill="${c.fill}" stroke="${c.stroke}" stroke-width="1.5"/><text x="${z.x+z.w/2}" y="${z.y+z.h/2+3}" text-anchor="middle" font-family="sans-serif" font-size="${z.w<40?'5.5':'6.5'}" fill="#374151">${z.lbl}${multi?'*':''}</text></g>`;
+  }).join('');
+  return `<div style="display:flex;gap:20px;align-items:flex-start;flex-wrap:wrap;">
+    <svg viewBox="0 0 200 308" style="width:160px;height:246px;display:block;flex-shrink:0;">${svgZones}</svg>
+    <div style="flex:1;min-width:160px;">
+      <div style="font-size:11px;color:#6b7280;margin-bottom:8px;">Referencias:</div>
+      <div style="display:flex;flex-direction:column;gap:5px;">
+        <div style="display:flex;align-items:center;gap:6px;font-size:12px;"><span style="width:14px;height:14px;border-radius:3px;background:#fef3c7;border:1px solid #f59e0b;display:inline-block;"></span>Rayón</div>
+        <div style="display:flex;align-items:center;gap:6px;font-size:12px;"><span style="width:14px;height:14px;border-radius:3px;background:#fed7aa;border:1px solid #f97316;display:inline-block;"></span>Abolladura</div>
+        <div style="display:flex;align-items:center;gap:6px;font-size:12px;"><span style="width:14px;height:14px;border-radius:3px;background:#fecaca;border:1px solid #ef4444;display:inline-block;"></span>Roto</div>
+      </div>
+      ${Object.keys(dz).filter(k=>dz[k]&&dz[k].length).map(k=>{
+        const z=zones.find(z=>z.id===k);
+        const v=dz[k];
+        const otros=dzo[k]||'';
+        const lbl=v.map(t=>({rayon:'Rayón',abolladura:'Abolladura',roto:'Roto',otros:'Otros'}[t]||t)).join(', ')+(otros?' ('+otros+')':'');
+        return `<div style="margin-top:6px;font-size:12px;color:#374151;"><strong>${z?z.lbl:k}:</strong> ${lbl}</div>`;
+      }).join('')}
+    </div>
+  </div>`;
+}
+
 function renderOTIngreso(o){
   const srv = o.servicios || {};
   const tar = o.tareas || {};
@@ -173,6 +231,8 @@ function renderOTIngreso(o){
     ${o.testigos ? `${sec('Testigos / Advertencias')}<div style="font-size:14px;color:#92400e;background:#fef3c7;border-radius:8px;padding:10px 12px;">${o.testigos}</div>` : ''}
 
     ${o.observacionesTexto ? `${sec('Observaciones al ingreso')}<div style="font-size:14px;color:#111827;background:#f9fafb;border-radius:8px;padding:10px 12px;border:1px solid #e5e7eb;">${o.observacionesTexto}</div>` : ''}
+
+    ${svgCocheStatic(o.danosZonas, o.danosZonasOtros) ? `${sec('Mapa de daños al ingreso')}${svgCocheStatic(o.danosZonas, o.danosZonasOtros)}` : ''}
   </div>`;
 }
 
