@@ -904,7 +904,6 @@ function htmlOrdenForm(){
       <select onchange="ordenActual.estado=this.value" style="border:1px solid #e5e7eb;border-radius:8px;padding:8px;font-size:13px;background:white;">
         ${['ingresado','en_proceso','listo','entregado'].map(s=>`<option value="${s}" ${o.estado===s?'selected':''}>${{ingresado:'Ingresado',en_proceso:'En proceso',listo:'Listo',entregado:'Entregado'}[s]}</option>`).join('')}
       </select>
-      <button onclick="saveOrden()" class="btn-gp">💾 Guardar</button>
       <button onclick="printOTActual()" class="btn-outline">🖨️</button>
       <button onclick="waOrden()" style="background:white;color:#16a34a;border:1px solid #d1d5db;font-weight:700;border-radius:8px;padding:8px 14px;cursor:pointer;">📱 WA</button>
     </div>
@@ -1019,6 +1018,10 @@ function htmlOrdenForm(){
         <button onclick="responderCliente()" class="btn-gp" style="white-space:nowrap;padding:9px 16px;font-size:13px;">Enviar ✉️</button>
       </div>
     </div>
+  </div>
+
+  <div style="display:flex;gap:10px;margin-bottom:20px;" class="no-print">
+    <button onclick="saveOrden()" style="flex:1;padding:16px;font-size:15px;font-weight:800;letter-spacing:0.5px;background:#fbbf24;color:#111827;border:none;border-radius:10px;cursor:pointer;">💾 GUARDAR ORDEN DE TRABAJO DE INGRESO</button>
   </div>
 
   <div class="card" style="margin-bottom:16px;">
