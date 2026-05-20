@@ -341,15 +341,19 @@ tbody tr:hover td { background: #fafafa; }
 
 <div id="mTurno" class="modal-bg"><div class="modal-box" style="max-width:500px;">
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
-    <h3 style="margin:0;font-size:18px;font-weight:800;">📅 Nuevo Turno</h3>
+    <h3 id="mTurnoTit" style="margin:0;font-size:18px;font-weight:800;">📅 Nuevo Turno</h3>
     <button onclick="closeM('mTurno')" style="background:none;border:none;font-size:22px;cursor:pointer;color:#9ca3af;">×</button>
   </div>
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
     <div style="grid-column:1/-1;">
       <label class="lbl">Servicio *</label>
-      <select id="tSrv" onchange="updTurnoFin()">
+      <select id="tSrv" onchange="updTurnoFin();toggleTSrvCustom()">
         <option value="">-- Seleccioná un servicio --</option>
       </select>
+    </div>
+    <div style="grid-column:1/-1;display:none;" id="tSrvCustomWrap">
+      <label class="lbl">Descripción del trabajo *</label>
+      <input id="tSrvCustom" placeholder="Ej: Pulido de faros y encerado completo..." />
     </div>
     <div>
       <label class="lbl">Fecha de inicio *</label>
@@ -367,6 +371,7 @@ tbody tr:hover td { background: #fafafa; }
     <div><label class="lbl">Celular (para WA)</label><input type="tel" id="tCel" placeholder="Ej: 2975123456" /></div>
     <div style="grid-column:1/-1;"><label class="lbl">Notas internas</label><textarea id="tNotas" rows="2" placeholder="Observaciones, acuerdos, etc."></textarea></div>
   </div>
+  <input type="hidden" id="tId" />
   <div style="display:flex;gap:10px;margin-top:20px;">
     <button class="btn-gp" style="flex:1;" onclick="saveTurno()">💾 Guardar Turno</button>
     <button class="btn-outline" onclick="closeM('mTurno')">Cancelar</button>
@@ -2271,6 +2276,7 @@ function renderTurnos(){
         <td><span class="badge ${t.origen==='publico'?'b-blue':'b-gray'}">${t.origen==='publico'?'🌐 Online':'✏️ Manual'}</span></td>
         <td style="white-space:nowrap;">
           ${t.cel?`<button onclick="waConfirmTurno('${t.id}')" style="color:#16a34a;background:none;border:none;cursor:pointer;font-size:13px;margin-right:6px;">📱</button>`:''}
+          ${CU.role==='admin'?`<button onclick="editTurno('${t.id}')" style="color:#d97706;background:none;border:none;cursor:pointer;font-size:13px;font-weight:600;margin-right:6px;">Editar</button>`:''}
           ${CU.role==='admin'?`<button onclick="cancelarTurno('${t.id}')" style="color:#ef4444;background:none;border:none;cursor:pointer;font-size:13px;">✕</button>`:''}
         </td>
       </tr>`;}).join('')}</tbody>
@@ -2280,13 +2286,37 @@ function renderTurnos(){
 
 function navSemana(d){ _turnosSemOff+=d; renderTurnos(); }
 
+function _tSrvOpts(){ return '<option value="">-- Seleccioná un servicio --</option>'+SERVICIOS_TURNOS.map(s=>`<option value="${s.id}">${s.nom} (${s.dias} día${s.dias>1?'s':''})</option>`).join('')+'<option value="__custom__">✏️ Personalizado...</option>'; }
+function toggleTSrvCustom(){ const v=document.getElementById('tSrv').value; document.getElementById('tSrvCustomWrap').style.display=v==='__custom__'?'block':'none'; }
 function openMTurno(){
-  document.getElementById('tSrv').innerHTML='<option value="">-- Seleccioná un servicio --</option>'+
-    SERVICIOS_TURNOS.map(s=>`<option value="${s.id}">${s.nom} (${s.dias} día${s.dias>1?'s':''})</option>`).join('');
+  document.getElementById('tSrv').innerHTML=_tSrvOpts();
   document.getElementById('tFechaI').value=today();
   document.getElementById('tDias').value='';
-  ['tNombre','tMarca','tModelo','tPatente','tCel','tNotas'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('tId').value='';
+  ['tNombre','tMarca','tModelo','tPatente','tCel','tNotas','tSrvCustom'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('tSrvCustomWrap').style.display='none';
   document.getElementById('tResumen').innerHTML='Seleccioná servicio y fecha.';
+  document.getElementById('mTurnoTit').textContent='📅 Nuevo Turno';
+  updTurnoFin();
+  openM('mTurno');
+}
+function editTurno(id){
+  const t=getTurnos().find(x=>x.id===id); if(!t)return;
+  document.getElementById('tSrv').innerHTML=_tSrvOpts();
+  document.getElementById('tId').value=t.id;
+  const isCustom=t.servicio==='__custom__'||(!SERVICIOS_TURNOS.find(s=>s.id===t.servicio)&&t.servicio);
+  document.getElementById('tSrv').value=isCustom?'__custom__':(t.servicio||'');
+  document.getElementById('tSrvCustom').value=isCustom?(t.servicioNom||''):'';
+  document.getElementById('tSrvCustomWrap').style.display=isCustom?'block':'none';
+  document.getElementById('tFechaI').value=t.fechaInicio||today();
+  document.getElementById('tDias').value=t.diasDuracion||1;
+  document.getElementById('tNombre').value=t.nombre||'';
+  document.getElementById('tMarca').value=t.marca||'';
+  document.getElementById('tModelo').value=t.modelo||'';
+  document.getElementById('tPatente').value=t.patente||'';
+  document.getElementById('tCel').value=t.cel||'';
+  document.getElementById('tNotas').value=t.notas||'';
+  document.getElementById('mTurnoTit').textContent='📅 Editar Turno';
   updTurnoFin();
   openM('mTurno');
 }
@@ -2309,17 +2339,22 @@ function updTurnoFin(){
 
 function saveTurno(){
   const srvId=document.getElementById('tSrv').value; if(!srvId){alert('Seleccioná un servicio');return;}
+  if(srvId==='__custom__'&&!document.getElementById('tSrvCustom').value.trim()){alert('Escribí la descripción del trabajo');return;}
   const fechaI=document.getElementById('tFechaI').value; if(!fechaI){alert('Seleccioná fecha de inicio');return;}
   if(!wdIsWorkday(fechaI)){alert('La fecha de inicio debe ser Lunes a Viernes');return;}
   const nombre=document.getElementById('tNombre').value.trim(); if(!nombre){alert('Ingresá el nombre del cliente');return;}
   const dias=parseInt(document.getElementById('tDias').value)||(SERVICIOS_TURNOS.find(s=>s.id===srvId)?.dias||1);
   const fechaFin=wdAdd(fechaI,dias);
   const srv=SERVICIOS_TURNOS.find(s=>s.id===srvId);
-  const obj={id:uid(),servicio:srvId,servicioNom:srv?.nom||srvId,diasDuracion:dias,fechaInicio:fechaI,fechaFin,nombre,
+  const servicioNomFinal=srvId==='__custom__'?document.getElementById('tSrvCustom').value.trim():(srv?.nom||srvId);
+  const editId=document.getElementById('tId').value;
+  const obj={id:editId||uid(),servicio:srvId,servicioNom:servicioNomFinal,diasDuracion:dias,fechaInicio:fechaI,fechaFin,nombre,
     marca:document.getElementById('tMarca').value.trim(),modelo:document.getElementById('tModelo').value.trim(),
     patente:document.getElementById('tPatente').value.trim().toUpperCase(),cel:document.getElementById('tCel').value.trim(),
     notas:document.getElementById('tNotas').value.trim(),origen:'manual',estado:'confirmado',creadoEn:Date.now()};
-  const list=getTurnos(); list.push(obj); dbS('turnos',list);
+  const list=getTurnos();
+  if(editId){const i=list.findIndex(x=>x.id===editId);if(i>=0)list[i]={...list[i],...obj};}else{list.push(obj);}
+  dbS('turnos',list);
   closeM('mTurno'); renderTurnos();
 }
 
