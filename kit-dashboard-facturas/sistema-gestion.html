@@ -1133,8 +1133,31 @@ function saveDanoModal(){
 }
 function updFuelBar(){const bar=document.getElementById('fuelBar');if(bar)bar.style.width=(ordenActual.combustible||50)+'%';}
 function llenarClienteOT(id){if(!id)return;const c=getCli().find(x=>x.id===id);if(!c)return;ordenActual.cliId=id;ordenActual.clienteNombre=c.nom;ordenActual.clienteDni=c.doc||'';ordenActual.clienteTelefono=c.cel||'';if(c.pat)ordenActual.patente=c.pat;document.querySelectorAll('#content input[oninput]').forEach(el=>{if(el.getAttribute('oninput')&&el.getAttribute('oninput').includes('clienteNombre'))el.value=c.nom;if(el.getAttribute('oninput')&&el.getAttribute('oninput').includes('clienteDni'))el.value=c.doc||'';if(el.getAttribute('oninput')&&el.getAttribute('oninput').includes('clienteTelefono'))el.value=c.cel||'';if(el.getAttribute('oninput')&&el.getAttribute('oninput').includes('patente')&&c.pat)el.value=c.pat;});}
-function handleFotos(input){const files=Array.from(input.files);let cnt=0;files.forEach(file=>{const r=new FileReader();r.onload=e=>{ordenActual.fotos.push({name:file.name,data:e.target.result});cnt++;if(cnt===files.length){const grid=document.getElementById('fotoGrid');const fotoCnt=document.getElementById('fotoCnt');if(grid)grid.innerHTML=(ordenActual.fotos||[]).map((f,i)=>`<div style="position:relative;"><img src="${f.data}" style="width:90px;height:80px;object-fit:cover;border-radius:8px;border:1px solid #e5e7eb;" /><button onclick="quitarFoto(${i})" style="position:absolute;top:-6px;right:-6px;background:#ef4444;color:white;border:none;border-radius:50%;width:20px;height:20px;cursor:pointer;font-size:12px;line-height:1;">×</button></div>`).join('');if(fotoCnt)fotoCnt.textContent=ordenActual.fotos.length+' foto(s)';}};r.readAsDataURL(file);});input.value='';}
-function quitarFoto(i){ordenActual.fotos.splice(i,1);const grid=document.getElementById('fotoGrid');const fotoCnt=document.getElementById('fotoCnt');if(grid)grid.innerHTML=(ordenActual.fotos||[]).map((f,idx)=>`<div style="position:relative;"><img src="${f.data}" style="width:90px;height:80px;object-fit:cover;border-radius:8px;border:1px solid #e5e7eb;" /><button onclick="quitarFoto(${idx})" style="position:absolute;top:-6px;right:-6px;background:#ef4444;color:white;border:none;border-radius:50%;width:20px;height:20px;cursor:pointer;font-size:12px;line-height:1;">×</button></div>`).join('');if(fotoCnt)fotoCnt.textContent=ordenActual.fotos.length+' foto(s)';}
+function _renderFotoGrid(){
+  const grid=document.getElementById('fotoGrid');const fotoCnt=document.getElementById('fotoCnt');
+  if(grid)grid.innerHTML=(ordenActual.fotos||[]).map((f,i)=>`<div style="position:relative;"><img src="${f.url||f.data||f}" style="width:90px;height:80px;object-fit:cover;border-radius:8px;border:1px solid #e5e7eb;" /><button onclick="quitarFoto(${i})" style="position:absolute;top:-6px;right:-6px;background:#ef4444;color:white;border:none;border-radius:50%;width:20px;height:20px;cursor:pointer;font-size:12px;line-height:1;">×</button></div>`).join('');
+  if(fotoCnt)fotoCnt.textContent=(ordenActual.fotos||[]).length+' foto(s)';
+}
+async function handleFotos(input){
+  const files=Array.from(input.files);if(!files.length)return;
+  const btn=document.querySelector('#fotoGrid ~ div button');
+  if(btn){btn.disabled=true;btn.textContent='⏳ Subiendo...';}
+  const fotoCnt=document.getElementById('fotoCnt');
+  let ok=0;
+  for(const file of files){
+    try{
+      if(fotoCnt)fotoCnt.textContent=`Subiendo ${ok+1}/${files.length}...`;
+      const base64=await new Promise((res,rej)=>{const r=new FileReader();r.onload=e=>res(e.target.result);r.onerror=rej;r.readAsDataURL(file);});
+      const url=await imgBBUpload(base64);
+      ordenActual.fotos.push({name:file.name,url});
+      ok++;
+      _renderFotoGrid();
+    }catch(e){alert(`No se pudo subir "${file.name}". Intentá de nuevo.`);}
+  }
+  if(btn){btn.disabled=false;btn.textContent='📷 Agregar fotos';}
+  input.value='';
+}
+function quitarFoto(i){ordenActual.fotos.splice(i,1);_renderFotoGrid();}
 function saveOrden(){const list=getOrdenes();const idx=list.findIndex(o=>o.id===ordenActual.id);ordenActual.ts=Date.now();if(idx>=0)list[idx]=ordenActual;else list.push(ordenActual);dbS('ot',list);alert('✅ Orden guardada');}
 function printOTActual(){printOTData(ordenActual);}
 function printOT(id){const o=getOrdenes().find(x=>x.id===id);if(!o)return;printOTData(o);}
