@@ -755,7 +755,7 @@ function initApp(){
 
 function navClick(id){closeSidebar();goTo(id);}
 
-function goTo(view){
+async function goTo(view){
   cancelarSel();
   if(chatInterval){clearInterval(chatInterval);chatInterval=null;}
   document.querySelectorAll('.nav-item').forEach(el=>el.classList.remove('active'));
@@ -764,7 +764,12 @@ function goTo(view){
   const t=titles[view]||'';
   document.getElementById('pgTitle').textContent=t;
   document.getElementById('pgTitleMobile').textContent=t;
-  ({dashboard:renderDB,clientes:renderCli,ordenes:renderOrdenes,presupuestos:renderPres,facturas:renderFV,cobranzas:renderCob,recibos:renderRecibos,remitos:renderRemitos,gastos:renderGas,contabilidad:renderContabilidad,turnos:renderTurnos,stockInsumos:renderStockI,stockProductos:renderStockP,chat:renderChat,config:renderConfig})[view]?.();
+  const renders={dashboard:renderDB,clientes:renderCli,ordenes:renderOrdenes,presupuestos:renderPres,facturas:renderFV,cobranzas:renderCob,recibos:renderRecibos,remitos:renderRemitos,gastos:renderGas,contabilidad:renderContabilidad,turnos:renderTurnos,stockInsumos:renderStockI,stockProductos:renderStockP,chat:renderChat,config:renderConfig};
+  renders[view]?.();
+  if(FS && view!=='chat' && view!=='config'){
+    await loadAllData();
+    renders[view]?.();
+  }
 }
 
 function checkAlertas(){
