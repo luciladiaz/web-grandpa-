@@ -2366,11 +2366,15 @@ function navSemana(d){ _turnosSemOff+=d; renderTurnos(); }
 
 function _renderTSrvList(seleccionados=[]){
   const items=[...SERVICIOS_TURNOS,{id:'__custom__',nom:'✏️ Personalizado...',dias:1,color:'#6b7280'}];
-  document.getElementById('tSrvList').innerHTML=items.map(s=>`
+  const el=document.getElementById('tSrvList');
+  el.innerHTML=items.map(s=>`
     <label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:6px 8px;border-radius:8px;background:white;border:1px solid #e5e7eb;font-size:13px;">
-      <input type="checkbox" value="${s.id}" ${seleccionados.includes(s.id)?'checked':''} onchange="toggleTSrvCustom();updTurnoFin()" style="width:15px;height:15px;accent-color:#fbbf24;flex-shrink:0;" />
+      <input type="checkbox" value="${s.id}" ${seleccionados.includes(s.id)?'checked':''} style="width:15px;height:15px;accent-color:#fbbf24;flex-shrink:0;" />
       <span>${s.nom}${s.dias&&s.id!=='__custom__'?` <span style="color:#9ca3af;font-size:11px;">(${s.dias}d)</span>`:''}</span>
     </label>`).join('');
+  el.querySelectorAll('input[type=checkbox]').forEach(chk=>{
+    chk.addEventListener('change',()=>{toggleTSrvCustom();updTurnoFin();});
+  });
 }
 function _getSrvChecked(){ return [...document.querySelectorAll('#tSrvList input[type=checkbox]:checked')].map(c=>c.value); }
 function toggleTSrvCustom(){ document.getElementById('tSrvCustomWrap').style.display=_getSrvChecked().includes('__custom__')?'block':'none'; }
