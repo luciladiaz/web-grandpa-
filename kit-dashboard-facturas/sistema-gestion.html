@@ -346,13 +346,11 @@ tbody tr:hover td { background: #fafafa; }
   </div>
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
     <div style="grid-column:1/-1;">
-      <label class="lbl">Servicio *</label>
-      <select id="tSrv" onchange="updTurnoFin();toggleTSrvCustom()">
-        <option value="">-- Seleccioná un servicio --</option>
-      </select>
+      <label class="lbl">Servicios * <span style="font-size:11px;color:#9ca3af;font-weight:400;">(podés elegir más de uno)</span></label>
+      <div id="tSrvList" style="display:grid;grid-template-columns:1fr 1fr;gap:6px;background:#f9fafb;border-radius:10px;padding:12px;border:1px solid #e5e7eb;"></div>
     </div>
     <div style="grid-column:1/-1;display:none;" id="tSrvCustomWrap">
-      <label class="lbl">Descripción del trabajo *</label>
+      <label class="lbl">Descripción del trabajo personalizado *</label>
       <input id="tSrvCustom" placeholder="Ej: Pulido de faros y encerado completo..." />
     </div>
     <div>
@@ -2366,10 +2364,17 @@ function renderTurnos(){
 
 function navSemana(d){ _turnosSemOff+=d; renderTurnos(); }
 
-function _tSrvOpts(){ return '<option value="">-- Seleccioná un servicio --</option>'+SERVICIOS_TURNOS.map(s=>`<option value="${s.id}">${s.nom} (${s.dias} día${s.dias>1?'s':''})</option>`).join('')+'<option value="__custom__">✏️ Personalizado...</option>'; }
-function toggleTSrvCustom(){ const v=document.getElementById('tSrv').value; document.getElementById('tSrvCustomWrap').style.display=v==='__custom__'?'block':'none'; }
+function _renderTSrvList(seleccionados=[]){
+  const items=[...SERVICIOS_TURNOS,{id:'__custom__',nom:'✏️ Personalizado...',dias:1,color:'#6b7280'}];
+  document.getElementById('tSrvList').innerHTML=items.map(s=>`
+    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:6px 8px;border-radius:8px;background:white;border:1px solid #e5e7eb;font-size:13px;">
+      <input type="checkbox" value="${s.id}" ${seleccionados.includes(s.id)?'checked':''} onchange="toggleTSrvCustom();updTurnoFin()" style="width:15px;height:15px;accent-color:#fbbf24;flex-shrink:0;" />
+      <span>${s.nom}${s.dias&&s.id!=='__custom__'?` <span style="color:#9ca3af;font-size:11px;">(${s.dias}d)</span>`:''}</span>
+    </label>`).join('');
+}
+function _getSrvChecked(){ return [...document.querySelectorAll('#tSrvList input[type=checkbox]:checked')].map(c=>c.value); }
+function toggleTSrvCustom(){ document.getElementById('tSrvCustomWrap').style.display=_getSrvChecked().includes('__custom__')?'block':'none'; }
 function openMTurno(){
-  document.getElementById('tSrv').innerHTML=_tSrvOpts();
   document.getElementById('tFechaI').value=today();
   document.getElementById('tDias').value='';
   document.getElementById('tId').value='';
@@ -2377,17 +2382,17 @@ function openMTurno(){
   document.getElementById('tSrvCustomWrap').style.display='none';
   document.getElementById('tResumen').innerHTML='Seleccioná servicio y fecha.';
   document.getElementById('mTurnoTit').textContent='📅 Nuevo Turno';
+  _renderTSrvList([]);
   updTurnoFin();
   openM('mTurno');
 }
 function editTurno(id){
   const t=getTurnos().find(x=>x.id===id); if(!t)return;
-  document.getElementById('tSrv').innerHTML=_tSrvOpts();
   document.getElementById('tId').value=t.id;
-  const isCustom=t.servicio==='__custom__'||(!SERVICIOS_TURNOS.find(s=>s.id===t.servicio)&&t.servicio);
-  document.getElementById('tSrv').value=isCustom?'__custom__':(t.servicio||'');
-  document.getElementById('tSrvCustom').value=isCustom?(t.servicioNom||''):'';
-  document.getElementById('tSrvCustomWrap').style.display=isCustom?'block':'none';
+  const seleccionados=t.servicios||[t.servicio].filter(Boolean);
+  _renderTSrvList(seleccionados);
+  document.getElementById('tSrvCustom').value=t.servicioCustom||'';
+  document.getElementById('tSrvCustomWrap').style.display=seleccionados.includes('__custom__')?'block':'none';
   document.getElementById('tFechaI').value=t.fechaInicio||today();
   document.getElementById('tDias').value=t.diasDuracion||1;
   document.getElementById('tNombre').value=t.nombre||'';
@@ -2402,10 +2407,11 @@ function editTurno(id){
 }
 
 function updTurnoFin(){
-  const srvId=document.getElementById('tSrv').value;
+  const checked=_getSrvChecked().filter(v=>v!=='__custom__');
+  const srvId=checked[0]||'';
   const fechaI=document.getElementById('tFechaI').value;
-  const srv=SERVICIOS_TURNOS.find(s=>s.id===srvId);
-  if(srv&&!document.getElementById('tDias').value) document.getElementById('tDias').value=srv.dias;
+  const totalDias=checked.reduce((s,id)=>{const srv=SERVICIOS_TURNOS.find(x=>x.id===id);return s+(srv?srv.dias:1);},0)||1;
+  if(checked.length&&!document.getElementById('tDias').value) document.getElementById('tDias').value=totalDias;
   const dias=parseInt(document.getElementById('tDias').value)||0;
   if(!fechaI||!dias){ document.getElementById('tResumen').innerHTML='Seleccioná servicio y fecha.'; return; }
   if(!wdIsWorkday(fechaI)){ document.getElementById('tResumen').innerHTML='<span style="color:#ef4444;">⚠️ La fecha de inicio debe ser un día hábil (Lunes a Viernes).</span>'; return; }
@@ -2418,17 +2424,20 @@ function updTurnoFin(){
 }
 
 function saveTurno(){
-  const srvId=document.getElementById('tSrv').value; if(!srvId){alert('Seleccioná un servicio');return;}
-  if(srvId==='__custom__'&&!document.getElementById('tSrvCustom').value.trim()){alert('Escribí la descripción del trabajo');return;}
+  const serviciosSeleccionados=_getSrvChecked();
+  if(!serviciosSeleccionados.length){alert('Seleccioná al menos un servicio');return;}
+  if(serviciosSeleccionados.includes('__custom__')&&!document.getElementById('tSrvCustom').value.trim()){alert('Escribí la descripción del trabajo personalizado');return;}
   const fechaI=document.getElementById('tFechaI').value; if(!fechaI){alert('Seleccioná fecha de inicio');return;}
   if(!wdIsWorkday(fechaI)){alert('La fecha de inicio debe ser Lunes a Viernes');return;}
   const nombre=document.getElementById('tNombre').value.trim(); if(!nombre){alert('Ingresá el nombre del cliente');return;}
-  const dias=parseInt(document.getElementById('tDias').value)||(SERVICIOS_TURNOS.find(s=>s.id===srvId)?.dias||1);
+  const srvId=serviciosSeleccionados[0];
+  const dias=parseInt(document.getElementById('tDias').value)||1;
   const fechaFin=wdAdd(fechaI,dias);
   const srv=SERVICIOS_TURNOS.find(s=>s.id===srvId);
-  const servicioNomFinal=srvId==='__custom__'?document.getElementById('tSrvCustom').value.trim():(srv?.nom||srvId);
+  const customTxt=document.getElementById('tSrvCustom').value.trim();
+  const servicioNomFinal=serviciosSeleccionados.map(id=>id==='__custom__'?customTxt:(SERVICIOS_TURNOS.find(s=>s.id===id)?.nom||id)).join(' + ');
   const editId=document.getElementById('tId').value;
-  const obj={id:editId||uid(),servicio:srvId,servicioNom:servicioNomFinal,diasDuracion:dias,fechaInicio:fechaI,fechaFin,nombre,
+  const obj={id:editId||uid(),servicio:srvId,servicios:serviciosSeleccionados,servicioNom:servicioNomFinal,servicioCustom:customTxt,diasDuracion:dias,fechaInicio:fechaI,fechaFin,nombre,
     marca:document.getElementById('tMarca').value.trim(),modelo:document.getElementById('tModelo').value.trim(),
     patente:document.getElementById('tPatente').value.trim().toUpperCase(),cel:document.getElementById('tCel').value.trim(),
     notas:document.getElementById('tNotas').value.trim(),origen:'manual',estado:'confirmado',creadoEn:Date.now()};
