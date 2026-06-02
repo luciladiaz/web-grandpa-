@@ -2411,7 +2411,8 @@ function updTurnoFin(){
   const srvId=checked[0]||'';
   const fechaI=document.getElementById('tFechaI').value;
   const totalDias=checked.reduce((s,id)=>{const srv=SERVICIOS_TURNOS.find(x=>x.id===id);return s+(srv?srv.dias:1);},0)||1;
-  if(checked.length&&!document.getElementById('tDias').value) document.getElementById('tDias').value=totalDias;
+  if(checked.length) document.getElementById('tDias').value=totalDias;
+  else document.getElementById('tDias').value='';
   const dias=parseInt(document.getElementById('tDias').value)||0;
   if(!fechaI||!dias){ document.getElementById('tResumen').innerHTML='Seleccioná servicio y fecha.'; return; }
   if(!wdIsWorkday(fechaI)){ document.getElementById('tResumen').innerHTML='<span style="color:#ef4444;">⚠️ La fecha de inicio debe ser un día hábil (Lunes a Viernes).</span>'; return; }
