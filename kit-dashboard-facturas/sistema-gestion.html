@@ -554,6 +554,7 @@ const SERVICIOS_TURNOS = [
 ];
 const CAT_GASTO = {productos_limpieza:'Productos de limpieza',pulimentos:'Pulimentos',insumos_taller:'Insumos taller',luz:'Luz',gas:'Gas',afip_autonomo:'AFIP Autónomo',planes_pago_afip:'Planes de pago AFIP',sueldos:'Sueldos',afip_iva:'AFIP IVA',iibb:'IIBB',otro:'Otro'};
 const NAV_ADMIN = [
+  {id:'inicio',lbl:'Inicio',ico:'🏠'},
   {id:'dashboard',lbl:'Dashboard',ico:'📊'},
   {sep:'GESTIÓN'},
   {id:'clientes',lbl:'Clientes',ico:'👥'},
@@ -749,8 +750,7 @@ function initApp(){
     document.getElementById('mainWrap').insertBefore(warn, document.getElementById('content'));
   }
   checkAlertas();
-  const firstNav=nav.find(n=>n.id);
-  goTo(firstNav?firstNav.id:'presupuestos');
+  goTo('inicio');
 }
 
 function navClick(id){closeSidebar();goTo(id);}
@@ -760,11 +760,11 @@ async function goTo(view){
   if(chatInterval){clearInterval(chatInterval);chatInterval=null;}
   document.querySelectorAll('.nav-item').forEach(el=>el.classList.remove('active'));
   const el=document.getElementById('nav_'+view); if(el)el.classList.add('active');
-  const titles={dashboard:'Dashboard',clientes:'Clientes',ordenes:'Órdenes de Trabajo',presupuestos:'Presupuestos',facturas:'Facturas de Venta',cobranzas:'Cobranzas',recibos:'Recibos de Cobro',remitos:'Remitos',gastos:'Gastos',contabilidad:'Contabilidad',stockInsumos:'Stock de Insumos',stockProductos:'Stock a la Venta',chat:'Chat Interno',config:'Configuración'};
+  const titles={inicio:'Inicio',dashboard:'Dashboard',clientes:'Clientes',ordenes:'Órdenes de Trabajo',presupuestos:'Presupuestos',facturas:'Facturas de Venta',cobranzas:'Cobranzas',recibos:'Recibos de Cobro',remitos:'Remitos',gastos:'Gastos',contabilidad:'Contabilidad',stockInsumos:'Stock de Insumos',stockProductos:'Stock a la Venta',chat:'Chat Interno',config:'Configuración'};
   const t=titles[view]||'';
   document.getElementById('pgTitle').textContent=t;
   document.getElementById('pgTitleMobile').textContent=t;
-  const renders={dashboard:renderDB,clientes:renderCli,ordenes:renderOrdenes,presupuestos:renderPres,facturas:renderFV,cobranzas:renderCob,recibos:renderRecibos,remitos:renderRemitos,gastos:renderGas,contabilidad:renderContabilidad,turnos:renderTurnos,stockInsumos:renderStockI,stockProductos:renderStockP,chat:renderChat,config:renderConfig};
+  const renders={inicio:renderInicio,dashboard:renderDB,clientes:renderCli,ordenes:renderOrdenes,presupuestos:renderPres,facturas:renderFV,cobranzas:renderCob,recibos:renderRecibos,remitos:renderRemitos,gastos:renderGas,contabilidad:renderContabilidad,turnos:renderTurnos,stockInsumos:renderStockI,stockProductos:renderStockP,chat:renderChat,config:renderConfig};
   renders[view]?.();
   if(FS && view!=='chat' && view!=='config'){
     await loadAllData();
@@ -797,6 +797,58 @@ const getStockI=()=>db('stI'), getStockP=()=>db('stP'), getChat=()=>db('chat');
 
 // ===================================================================
 // DASHBOARD
+// ===================================================================
+function renderInicio(){
+  const emp=getEmpresa();
+  const nav=getUserNav().filter(n=>n.id&&n.id!=='inicio');
+  const grupos=[
+    {titulo:'GESTIÓN',color:'#fbbf24',items:[
+      {id:'ordenes',ico:'🔧',lbl:'Órdenes de Trabajo',desc:'Ingresá y gestioná vehículos en el taller'},
+      {id:'presupuestos',ico:'📋',lbl:'Presupuestos',desc:'Creá y enviá presupuestos a clientes'},
+      {id:'clientes',ico:'👥',lbl:'Clientes',desc:'Base de datos de clientes'},
+      {id:'turnos',ico:'📅',lbl:'Turnos',desc:'Agenda y gestión de turnos'},
+    ]},
+    {titulo:'FINANZAS',color:'#10b981',items:[
+      {id:'facturas',ico:'🧾',lbl:'Facturas de Venta',desc:'Registrá e importá facturas emitidas'},
+      {id:'cobranzas',ico:'💰',lbl:'Cobranzas',desc:'Seguimiento de cobros pendientes'},
+      {id:'gastos',ico:'💸',lbl:'Gastos',desc:'Registrá e importá facturas de compra'},
+      {id:'recibos',ico:'📄',lbl:'Recibos',desc:'Comprobantes de pago a clientes'},
+      {id:'remitos',ico:'📦',lbl:'Remitos',desc:'Documentos de entrega'},
+      {id:'contabilidad',ico:'📊',lbl:'Contabilidad',desc:'Resumen contable general'},
+    ]},
+    {titulo:'INVENTARIO',color:'#6366f1',items:[
+      {id:'stockInsumos',ico:'📦',lbl:'Stock Insumos',desc:'Control de insumos del taller'},
+      {id:'stockProductos',ico:'🛍️',lbl:'Stock a la Venta',desc:'Productos disponibles para vender'},
+    ]},
+    {titulo:'SISTEMA',color:'#9ca3af',items:[
+      {id:'dashboard',ico:'📊',lbl:'Dashboard',desc:'Métricas y resumen del negocio'},
+      {id:'chat',ico:'💬',lbl:'Chat Interno',desc:'Comunicación entre el equipo'},
+      {id:'config',ico:'⚙️',lbl:'Configuración',desc:'Empresa, usuarios y servicios'},
+    ]},
+  ];
+  const navIds=nav.map(n=>n.id);
+  const card=(item)=>`
+    <div onclick="goTo('${item.id}')" style="background:white;border-radius:14px;padding:22px 20px;cursor:pointer;box-shadow:0 1px 4px rgba(0,0,0,0.08);border:1px solid #f3f4f6;transition:box-shadow 0.15s;display:flex;flex-direction:column;gap:6px;" onmouseover="this.style.boxShadow='0 4px 16px rgba(0,0,0,0.12)'" onmouseout="this.style.boxShadow='0 1px 4px rgba(0,0,0,0.08)'">
+      <div style="font-size:32px;margin-bottom:4px;">${item.ico}</div>
+      <div style="font-size:15px;font-weight:800;color:#111827;">${item.lbl}</div>
+      <div style="font-size:12px;color:#9ca3af;">${item.desc}</div>
+    </div>`;
+  const seccion=(g)=>{
+    const visible=g.items.filter(i=>navIds.includes(i.id));
+    if(!visible.length)return'';
+    return`<div style="margin-bottom:28px;">
+      <div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:1px;color:${g.color};margin-bottom:12px;">${g.titulo}</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px;">${visible.map(card).join('')}</div>
+    </div>`;
+  };
+  document.getElementById('content').innerHTML=`
+    <div style="margin-bottom:24px;">
+      <div style="font-size:22px;font-weight:900;color:#111827;">Bienvenido, ${CU.name} 👋</div>
+      <div style="font-size:14px;color:#9ca3af;margin-top:4px;">${emp.nombre||'Grandpa Estética Vehicular'} — ¿A qué sección querés ir?</div>
+    </div>
+    ${grupos.map(seccion).join('')}
+  `;
+}
 // ===================================================================
 function renderDB(){
   const fv=getFV(),g=getG(),pres=getPres(),ot=getOrdenes(),hoy=today();
