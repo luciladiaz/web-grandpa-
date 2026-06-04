@@ -961,7 +961,7 @@ function htmlOrdenForm(){
   const o=ordenActual;const clientes=getCli();
   const chkS=(k,lbl)=>`<label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:5px 0;font-size:14px;"><input type="checkbox" ${o.servicios[k]?'checked':''} onchange="ordenActual.servicios['${k}']=this.checked" style="width:17px;height:17px;accent-color:#fbbf24;flex-shrink:0;"> ${lbl}</label>`;
   const chkT=(k,lbl)=>`<label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:4px 0;font-size:13px;"><input type="checkbox" ${o.tareas[k]?'checked':''} onchange="ordenActual.tareas['${k}']=this.checked" style="width:15px;height:15px;accent-color:#fbbf24;flex-shrink:0;"> ${lbl}</label>`;
-  const fotosHtml=(o.fotos||[]).map((f,i)=>`<div style="position:relative;"><img src="${f.data}" style="width:90px;height:80px;object-fit:cover;border-radius:8px;border:1px solid #e5e7eb;" /><button onclick="quitarFoto(${i})" style="position:absolute;top:-6px;right:-6px;background:#ef4444;color:white;border:none;border-radius:50%;width:20px;height:20px;cursor:pointer;font-size:12px;line-height:1;">×</button></div>`).join('');
+  const fotosHtml=(o.fotos||[]).map((f,i)=>`<div style="position:relative;"><img src="${f.url||f.data||f}" style="width:90px;height:80px;object-fit:cover;border-radius:8px;border:1px solid #e5e7eb;" /><button onclick="quitarFoto(${i})" style="position:absolute;top:-6px;right:-6px;background:#ef4444;color:white;border:none;border-radius:50%;width:20px;height:20px;cursor:pointer;font-size:12px;line-height:1;">×</button></div>`).join('');
   return`
   <div class="no-print" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px;">
     <button onclick="renderOrdenes()" style="background:none;border:1px solid #e5e7eb;border-radius:8px;padding:8px 16px;cursor:pointer;font-size:14px;">← Volver</button>
@@ -1110,6 +1110,15 @@ function htmlOrdenForm(){
         <div id="recsList">${renderRecsList(o.hojaEntrega.recomendaciones||[])}</div>
       </div>
       <div><label class="lbl">Próximo servicio recomendado</label><input value="${o.hojaEntrega.proximoServicio||''}" oninput="ordenActual.hojaEntrega.proximoServicio=this.value" placeholder="Ej: En 6 meses o 10.000 km" /></div>
+      <div style="grid-column:1/-1;">
+        <label class="lbl">📸 Fotos del vehículo entregado</label>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-start;margin-bottom:8px;" id="fotoGridEntrega">${(o.hojaEntrega.fotosEntrega||[]).map((f,i)=>`<div style="position:relative;"><img src="${f.url||f.data||f}" style="width:90px;height:80px;object-fit:cover;border-radius:8px;border:1px solid #e5e7eb;" /><button onclick="quitarFotoEntrega(${i})" class="no-print" style="position:absolute;top:-6px;right:-6px;background:#ef4444;color:white;border:none;border-radius:50%;width:20px;height:20px;cursor:pointer;font-size:12px;line-height:1;">×</button></div>`).join('')}</div>
+        <div class="no-print" style="display:flex;align-items:center;gap:12px;">
+          <input type="file" id="fotoInputEntrega" accept="image/*" multiple style="display:none;" onchange="handleFotosEntrega(this)" />
+          <button onclick="document.getElementById('fotoInputEntrega').click()" class="btn-outline btn-sm">📷 Agregar fotos de entrega</button>
+          <span style="color:#9ca3af;font-size:12px;" id="fotoCntEntrega">${(o.hojaEntrega.fotosEntrega||[]).length} foto(s)</span>
+        </div>
+      </div>
     </div>
   </div>
   <div class="card" style="margin-bottom:16px;">
@@ -1213,6 +1222,38 @@ async function handleFotos(input){
   input.value='';
 }
 function quitarFoto(i){ordenActual.fotos.splice(i,1);_renderFotoGrid();}
+
+function _renderFotoGridEntrega(){
+  const grid=document.getElementById('fotoGridEntrega');
+  const cnt=document.getElementById('fotoCntEntrega');
+  const fotos=ordenActual.hojaEntrega.fotosEntrega||[];
+  if(grid)grid.innerHTML=fotos.map((f,i)=>`<div style="position:relative;"><img src="${f.url||f.data||f}" style="width:90px;height:80px;object-fit:cover;border-radius:8px;border:1px solid #e5e7eb;" /><button onclick="quitarFotoEntrega(${i})" class="no-print" style="position:absolute;top:-6px;right:-6px;background:#ef4444;color:white;border:none;border-radius:50%;width:20px;height:20px;cursor:pointer;font-size:12px;line-height:1;">×</button></div>`).join('');
+  if(cnt)cnt.textContent=fotos.length+' foto(s)';
+}
+async function handleFotosEntrega(input){
+  const files=Array.from(input.files);if(!files.length)return;
+  if(!ordenActual.hojaEntrega.fotosEntrega)ordenActual.hojaEntrega.fotosEntrega=[];
+  const btn=document.querySelector('#fotoGridEntrega~div button');
+  if(btn){btn.disabled=true;btn.textContent='⏳ Subiendo...';}
+  const cnt=document.getElementById('fotoCntEntrega');
+  let ok=0;
+  for(const file of files){
+    try{
+      if(cnt)cnt.textContent=`Subiendo ${ok+1}/${files.length}...`;
+      const base64=await new Promise((res,rej)=>{const r=new FileReader();r.onload=e=>res(e.target.result);r.onerror=rej;r.readAsDataURL(file);});
+      const url=await imgBBUpload(base64);
+      ordenActual.hojaEntrega.fotosEntrega.push({name:file.name,url});
+      ok++;
+      _renderFotoGridEntrega();
+    }catch(e){alert(`No se pudo subir "${file.name}". Intentá de nuevo.`);}
+  }
+  if(btn){btn.disabled=false;btn.textContent='📷 Agregar fotos de entrega';}
+  input.value='';
+}
+function quitarFotoEntrega(i){
+  ordenActual.hojaEntrega.fotosEntrega.splice(i,1);
+  _renderFotoGridEntrega();
+}
 function saveOrden(){const list=getOrdenes();const idx=list.findIndex(o=>o.id===ordenActual.id);ordenActual.ts=Date.now();if(idx>=0)list[idx]=ordenActual;else list.push(ordenActual);dbS('ot',list);alert('✅ Orden guardada');}
 function printOTActual(){printOTData(ordenActual);}
 function printOT(id){const o=getOrdenes().find(x=>x.id===id);if(!o)return;printOTData(o);}
@@ -1222,7 +1263,7 @@ function printOTData(o){
   const chkT=(k,lbl)=>`<div style="display:flex;align-items:center;gap:6px;padding:3px 0;font-size:12px;"><div style="width:12px;height:12px;border:1.5px solid #374151;border-radius:2px;background:${o.tareas&&o.tareas[k]?'#fbbf24':'white'};display:flex;align-items:center;justify-content:center;flex-shrink:0;">${o.tareas&&o.tareas[k]?'✓':''}</div>${lbl}</div>`;
   const danoLabels={pDel:'Paragolpes del.',capo:'Capó',gbdi:'G.B.D.Izq',gbdd:'G.B.D.Der',para:'Parabrisa',pdi:'P.Del.Izq',pdd:'P.Del.Der',techo:'Techo',pti:'P.Tra.Izq',ptd:'P.Tra.Der',luneta:'Luneta',gbti:'G.B.T.Izq',gbtd:'G.B.T.Der',baul:'Baúl',pTra:'Paragolpes tra.'};
   const danosDesc=Object.entries(o.danosZonas||{}).map(([k,v])=>{const tipos=Array.isArray(v)?v:[v];const txt=tipos.map(t=>t==='otros'?(o.danosZonasOtros&&o.danosZonasOtros[k]?`Otros: ${o.danosZonasOtros[k]}`:'Otros'):{rayon:'Rayón',abolladura:'Abolladura',roto:'Roto'}[t]||t).join('+');return`${danoLabels[k]||k}: ${txt}`;}).join(' | ')||'Sin daños marcados';
-  const fotosHtml=(o.fotos||[]).slice(0,6).map(f=>`<img src="${f.data}" style="width:140px;height:100px;object-fit:cover;border-radius:8px;border:1px solid #e5e7eb;" />`).join('');
+  const fotosHtml=(o.fotos||[]).slice(0,6).map(f=>`<img src="${f.url||f.data||f}" style="width:140px;height:100px;object-fit:cover;border-radius:8px;border:1px solid #e5e7eb;" />`).join('');
   const firmasCli=(o.firmas&&o.firmas.cliente)?`<img src="${o.firmas.cliente}" style="max-width:100%;max-height:80px;display:block;margin:0 auto 4px;" />`:'<div style="height:70px;"></div>';
   const firmasResp=(o.firmas&&o.firmas.responsable)?`<img src="${o.firmas.responsable}" style="max-width:100%;max-height:80px;display:block;margin:0 auto 4px;" />`:'<div style="height:70px;"></div>';
   const w=window.open('','_blank');
@@ -2251,6 +2292,7 @@ function printHojaEntrega(){
 <div class="box"><h4>Trabajo Realizado</h4><p style="font-size:14px;color:#374151;line-height:1.6;">${he.descripcion||'—'}</p></div>
 ${recs.length?`<div class="box"><h4>Recomendaciones para el mantenimiento del servicio</h4>${recs.map(r=>`<div class="rec-item"><span class="rec-icon">✓</span><span>${r}</span></div>`).join('')}</div>`:''}
 ${he.proximoServicio?`<div class="box"><h4>Próximo servicio recomendado</h4><p style="font-size:14px;font-weight:600;color:#d97706;">${he.proximoServicio}</p></div>`:''}
+${(he.fotosEntrega||[]).length?`<div class="box"><h4>Fotos del vehículo entregado</h4><div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:6px;">${(he.fotosEntrega||[]).map(f=>`<img src="${f.url||f.data||f}" style="width:160px;height:120px;object-fit:cover;border-radius:8px;border:1px solid #e5e7eb;" />`).join('')}</div></div>`:''}
 <div class="firma"><div class="firma-box">${heFirmaCli}Firma y aclaración del cliente</div><div class="firma-box">${heFirmaResp}Firma del responsable</div></div>
 <div class="pie">${emp.nombre} | ${emp.domicilio} | Tel: ${emp.tel}</div>
 <div style="text-align:center;margin-top:20px;"><button onclick="window.print()" style="background:#fbbf24;border:none;padding:10px 24px;border-radius:8px;font-weight:700;cursor:pointer;">🖨️ Imprimir / Guardar PDF</button></div>
