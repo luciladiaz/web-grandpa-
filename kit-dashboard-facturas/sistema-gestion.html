@@ -1258,14 +1258,43 @@ function quitarFotoEntrega(i){
   _renderFotoGridEntrega();
 }
 async function saveOrden(){
-  const list=getOrdenes();const idx=list.findIndex(o=>o.id===ordenActual.id);
-  ordenActual.ts=Date.now();if(idx>=0)list[idx]=ordenActual;else list.push(ordenActual);
+  // Subir firma a imgBB si todavía es base64
+  if(ordenActual.firmas){
+    for(const k of ['cliente','responsable']){
+      const sig=ordenActual.firmas[k];
+      if(sig&&sig.startsWith('data:')){
+        try{ ordenActual.firmas[k]=await imgBBUpload(sig); }catch(e){}
+      }
+    }
+  }
+  // Limpiar fotos base64 de la orden actual
+  if(ordenActual.fotos){
+    ordenActual.fotos=ordenActual.fotos.filter(f=>f&&(f.url||(typeof f==='string'&&!f.startsWith('data:'))));
+  }
+  if(ordenActual.hojaEntrega?.fotosEntrega){
+    ordenActual.hojaEntrega.fotosEntrega=ordenActual.hojaEntrega.fotosEntrega.filter(f=>f&&(f.url||(typeof f==='string'&&!f.startsWith('data:'))));
+  }
+
+  const list=getOrdenes();
+  // Limpiar fotos base64 de TODAS las órdenes para reducir tamaño del documento
+  const cleanList=list.map(ot=>{
+    const c={...ot};
+    if(c.fotos) c.fotos=c.fotos.filter(f=>f&&(f.url||(typeof f==='string'&&!f.startsWith('data:'))));
+    if(c.hojaEntrega?.fotosEntrega) c.hojaEntrega={...c.hojaEntrega,fotosEntrega:c.hojaEntrega.fotosEntrega.filter(f=>f&&(f.url||(typeof f==='string'&&!f.startsWith('data:'))))};
+    return c;
+  });
+
+  const idx=cleanList.findIndex(o=>o.id===ordenActual.id);
+  ordenActual.ts=Date.now();
+  if(idx>=0)cleanList[idx]=ordenActual;else cleanList.push(ordenActual);
+
   try{
-    await dbS('ot',list);
+    await dbS('ot',cleanList);
+    MEM.ot=cleanList;
     alert('✅ Orden guardada');
   }catch(e){
     console.error('Error guardando orden:',e);
-    alert('❌ Error al guardar. El documento puede ser demasiado grande. Intentá reducir la cantidad de fotos.');
+    alert('❌ Error al guardar: '+e.message);
   }
 }
 function printOTActual(){printOTData(ordenActual);}
