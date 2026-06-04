@@ -1256,7 +1256,17 @@ function quitarFotoEntrega(i){
   ordenActual.hojaEntrega.fotosEntrega.splice(i,1);
   _renderFotoGridEntrega();
 }
-function saveOrden(){const list=getOrdenes();const idx=list.findIndex(o=>o.id===ordenActual.id);ordenActual.ts=Date.now();if(idx>=0)list[idx]=ordenActual;else list.push(ordenActual);dbS('ot',list);alert('✅ Orden guardada');}
+async function saveOrden(){
+  const list=getOrdenes();const idx=list.findIndex(o=>o.id===ordenActual.id);
+  ordenActual.ts=Date.now();if(idx>=0)list[idx]=ordenActual;else list.push(ordenActual);
+  try{
+    await dbS('ot',list);
+    alert('✅ Orden guardada');
+  }catch(e){
+    console.error('Error guardando orden:',e);
+    alert('❌ Error al guardar. El documento puede ser demasiado grande. Intentá reducir la cantidad de fotos.');
+  }
+}
 function printOTActual(){printOTData(ordenActual);}
 function printOT(id){const o=getOrdenes().find(x=>x.id===id);if(!o)return;printOTData(o);}
 function printOTData(o){
@@ -1296,7 +1306,13 @@ function initFirmaPads(){
     if(sig){const img=new Image();img.onload=()=>ctx.drawImage(img,0,0,canvas.width,canvas.height);img.src=sig;}
     let drawing=false;
     const getXY=e=>{const r=canvas.getBoundingClientRect();const sx=canvas.width/r.width;const sy=canvas.height/r.height;const s=e.touches?e.touches[0]:e;return{x:(s.clientX-r.left)*sx,y:(s.clientY-r.top)*sy};};
-    const saveImg=()=>{if(!ordenActual.firmas)ordenActual.firmas={};ordenActual.firmas[k]=canvas.toDataURL();};
+    const saveImg=()=>{
+      if(!ordenActual.firmas)ordenActual.firmas={};
+      // Comprimir firma a JPEG 50% para reducir tamaño en Firebase
+      const tmp=document.createElement('canvas');tmp.width=300;tmp.height=100;
+      tmp.getContext('2d').drawImage(canvas,0,0,300,100);
+      ordenActual.firmas[k]=tmp.toDataURL('image/jpeg',0.5);
+    };
     canvas.addEventListener('mousedown',e=>{drawing=true;ctx.beginPath();const p=getXY(e);ctx.moveTo(p.x,p.y);e.preventDefault();});
     canvas.addEventListener('mousemove',e=>{if(!drawing)return;const p=getXY(e);ctx.lineTo(p.x,p.y);ctx.stroke();e.preventDefault();});
     canvas.addEventListener('mouseup',()=>{if(drawing){drawing=false;saveImg();}});
