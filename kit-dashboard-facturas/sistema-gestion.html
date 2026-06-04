@@ -652,10 +652,10 @@ async function loadAllData() {
 
 const db = k => MEM[k] || [];
 
-function dbS(k, v) {
+async function dbS(k, v) {
   MEM[k] = v;
-  if (FS) { FS.collection('gp').doc(k).set({d:v}).catch(e=>console.error('Write:',e)); }
-  else { localStorage.setItem('gp2_'+k, JSON.stringify(v)); }
+  try { localStorage.setItem('gp2_'+k, JSON.stringify(v)); } catch(e){}
+  if (FS) { await FS.collection('gp').doc(k).set({d:v}); }
 }
 
 function getCfg() { return MEM.cfg || {}; }
@@ -945,7 +945,8 @@ function filtOT(est){const list=est?getOrdenes().filter(o=>o.estado===est):getOr
 function bdgOT(est){const m={ingresado:'b-gray',en_proceso:'b-yellow',listo:'b-green',entregado:'b-blue'};const l={ingresado:'Ingresado',en_proceso:'En proceso',listo:'Listo ✓',entregado:'Entregado'};return`<span class="badge ${m[est]||'b-gray'}">${l[est]||est}</span>`;}
 function cambioEstOT(id){const estados=['ingresado','en_proceso','listo','entregado'];const labs={ingresado:'Ingresado',en_proceso:'En proceso',listo:'Listo',entregado:'Entregado'};const list=getOrdenes();const o=list.find(x=>x.id===id);if(!o)return;const n=prompt(`Estado actual: ${labs[o.estado]}\n\n0 Ingresado\n1 En proceso\n2 Listo\n3 Entregado\n\nNúmero:`);if(n===null||!estados[+n])return;o.estado=estados[+n];dbS('ot',list);renderOrdenes();}
 
-function abrirOrden(id){
+async function abrirOrden(id){
+  if(id && FS){ try{ const snap=await FS.collection('gp').doc('ot').get(); if(snap.exists)MEM.ot=snap.data().d||[]; }catch(e){} }
   const list=getOrdenes();
   ordenActual=id?JSON.parse(JSON.stringify(list.find(o=>o.id===id))):{id:uid(),num:`OT-${String(list.length+1).padStart(5,'0')}`,fecha:today(),estado:'ingresado',cliId:null,clienteNombre:'',clienteDni:'',clienteTelefono:'',marca:'',modelo:'',color:'',km:'',patente:'',nSerie:'',servicios:{chapaPintura:false,equipamiento:false,lavadoTapizado:false,abrillantado:false,ceramico1:false,ceramico3:false,ceramico5:false,otros:''},tareas:{lavadoDetalle:false,encerado:false,lavadoLlantas:false,limpiezaTapizado:false,abrillantado2:false,correccionBarniz:false,selladoCeramico:false,limpiezaBuches:false,limpiezaTecho:false,pulidoOpticasDel:false,pulidoOpticasTra:false,restauracionOpticas:false,lavadoInterior:false,limpiezaMotor:false,ploteo:false,desploteo:false,cambioLuces:false,pinturaLlantas:false,despolarizar:false,mecanicaScaneo:false,cambioOpticas:false,custom1:'',custom2:'',custom3:''},combustible:'50',testigos:'',observacionesTexto:'',danosZonas:{},fotos:[],notas:'',creadoPor:CU.name,creadoPorId:CU.id,hojaEntrega:{descripcion:'',recomendaciones:[],proximoServicio:''}};
   if(!ordenActual.hojaEntrega)ordenActual.hojaEntrega={descripcion:'',recomendaciones:[],proximoServicio:''};
