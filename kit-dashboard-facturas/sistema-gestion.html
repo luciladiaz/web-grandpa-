@@ -454,6 +454,25 @@ tbody tr:hover td { background: #fafafa; }
   </div>
 </div></div>
 
+<div id="mDiario" class="modal-bg"><div class="modal-box" style="max-width:440px;">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+    <h3 style="margin:0;font-size:18px;font-weight:800;">Editar Movimiento</h3>
+    <button onclick="closeM('mDiario')" style="background:none;border:none;font-size:22px;cursor:pointer;color:#9ca3af;">×</button>
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+    <div><label class="lbl">Fecha *</label><input type="date" id="dFecha" /></div>
+    <div><label class="lbl">Tipo *</label><select id="dTipo"><option value="ingreso">💰 Ingreso</option><option value="gasto">💸 Gasto</option></select></div>
+    <div style="grid-column:1/-1;"><label class="lbl">Descripción *</label><input id="dDesc" placeholder="Ej: Lavado Ford Focus" /></div>
+    <div><label class="lbl">Monto *</label><input type="number" id="dMonto" /></div>
+    <div><label class="lbl">Forma de pago</label><select id="dFP"><option value="efectivo">Efectivo</option><option value="transferencia">Transferencia</option><option value="tarjeta">Tarjeta</option><option value="cheque">Cheque</option><option value="echeq">E-Cheq</option></select></div>
+  </div>
+  <input type="hidden" id="dId" />
+  <div style="display:flex;gap:10px;margin-top:20px;">
+    <button class="btn-gp" style="flex:1;" onclick="saveDiario()">Guardar</button>
+    <button class="btn-outline" onclick="closeM('mDiario')">Cancelar</button>
+  </div>
+</div></div>
+
 <div id="mStock" class="modal-bg"><div class="modal-box" style="max-width:480px;">
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
     <h3 id="mStockTit" style="margin:0;font-size:18px;font-weight:800;">Nuevo Item</h3>
@@ -556,6 +575,7 @@ const CAT_GASTO = {productos_limpieza:'Productos de limpieza',pulimentos:'Pulime
 const NAV_ADMIN = [
   {id:'inicio',lbl:'Inicio',ico:'🏠'},
   {id:'dashboard',lbl:'Dashboard',ico:'📊'},
+  {id:'diario',lbl:'Libro Diario',ico:'📔'},
   {sep:'GESTIÓN'},
   {id:'clientes',lbl:'Clientes',ico:'👥'},
   {id:'ordenes',lbl:'Órdenes de Trabajo',ico:'🔧'},
@@ -578,7 +598,7 @@ const NAV_ADMIN = [
 ];
 const NAV_PRES = [{id:'presupuestos',lbl:'Presupuestos',ico:'📋'}];
 const ALL_MODULES = [
-  {id:'dashboard',lbl:'Dashboard'},{id:'clientes',lbl:'Clientes'},{id:'ordenes',lbl:'Órdenes de Trabajo'},
+  {id:'dashboard',lbl:'Dashboard'},{id:'diario',lbl:'Libro Diario'},{id:'clientes',lbl:'Clientes'},{id:'ordenes',lbl:'Órdenes de Trabajo'},
   {id:'presupuestos',lbl:'Presupuestos'},{id:'facturas',lbl:'Facturas de Venta'},{id:'cobranzas',lbl:'Cobranzas'},
   {id:'gastos',lbl:'Gastos'},{id:'recibos',lbl:'Recibos'},{id:'remitos',lbl:'Remitos'},{id:'contabilidad',lbl:'Contabilidad'},{id:'turnos',lbl:'Gestión de Turnos'},{id:'stockInsumos',lbl:'Stock Insumos'},{id:'stockProductos',lbl:'Stock a la Venta'},
   {id:'chat',lbl:'Chat Interno'},{id:'config',lbl:'Configuración'},
@@ -604,8 +624,8 @@ function getUserNav(){
 // ===================================================================
 let FS = null; // Firestore instance
 let FB_OK = false;
-const MEM = { cli:[], pres:[], fv:[], g:[], ot:[], stI:[], stP:[], chat:[], recibos:[], remitos:[], contab:[], turnos:[], cfg:{} };
-const DB_KEYS = ['cli','pres','fv','g','ot','stI','stP','recibos','remitos','contab','turnos'];
+const MEM = { cli:[], pres:[], fv:[], g:[], ot:[], stI:[], stP:[], chat:[], recibos:[], remitos:[], contab:[], turnos:[], diario:[], cfg:{} };
+const DB_KEYS = ['cli','pres','fv','g','ot','stI','stP','recibos','remitos','contab','turnos','diario'];
 
 function initFirebase() {
   if (FIREBASE_CONFIG.apiKey === 'PEGAR-AQUI') return false;
@@ -760,11 +780,11 @@ async function goTo(view){
   if(chatInterval){clearInterval(chatInterval);chatInterval=null;}
   document.querySelectorAll('.nav-item').forEach(el=>el.classList.remove('active'));
   const el=document.getElementById('nav_'+view); if(el)el.classList.add('active');
-  const titles={inicio:'Inicio',dashboard:'Dashboard',clientes:'Clientes',ordenes:'Órdenes de Trabajo',presupuestos:'Presupuestos',facturas:'Facturas de Venta',cobranzas:'Cobranzas',recibos:'Recibos de Cobro',remitos:'Remitos',gastos:'Gastos',contabilidad:'Contabilidad',stockInsumos:'Stock de Insumos',stockProductos:'Stock a la Venta',chat:'Chat Interno',config:'Configuración'};
+  const titles={inicio:'Inicio',dashboard:'Dashboard',diario:'Libro Diario',clientes:'Clientes',ordenes:'Órdenes de Trabajo',presupuestos:'Presupuestos',facturas:'Facturas de Venta',cobranzas:'Cobranzas',recibos:'Recibos de Cobro',remitos:'Remitos',gastos:'Gastos',contabilidad:'Contabilidad',stockInsumos:'Stock de Insumos',stockProductos:'Stock a la Venta',chat:'Chat Interno',config:'Configuración'};
   const t=titles[view]||'';
   document.getElementById('pgTitle').textContent=t;
   document.getElementById('pgTitleMobile').textContent=t;
-  const renders={inicio:renderInicio,dashboard:renderDB,clientes:renderCli,ordenes:renderOrdenes,presupuestos:renderPres,facturas:renderFV,cobranzas:renderCob,recibos:renderRecibos,remitos:renderRemitos,gastos:renderGas,contabilidad:renderContabilidad,turnos:renderTurnos,stockInsumos:renderStockI,stockProductos:renderStockP,chat:renderChat,config:renderConfig};
+  const renders={inicio:renderInicio,dashboard:renderDB,diario:renderDiario,clientes:renderCli,ordenes:renderOrdenes,presupuestos:renderPres,facturas:renderFV,cobranzas:renderCob,recibos:renderRecibos,remitos:renderRemitos,gastos:renderGas,contabilidad:renderContabilidad,turnos:renderTurnos,stockInsumos:renderStockI,stockProductos:renderStockP,chat:renderChat,config:renderConfig};
   renders[view]?.();
   if(FS && view!=='chat' && view!=='config'){
     await loadAllData();
@@ -793,7 +813,7 @@ function renderSidebarLogo(){const logo=getLogo();const w=document.getElementByI
 // ===================================================================
 const getCli=()=>db('cli'), getPres=()=>db('pres'), getFV=()=>db('fv');
 const getG=()=>db('g'), getOrdenes=()=>db('ot'), getRecibos=()=>db('recibos'), getRemitos=()=>db('remitos'), getContab=()=>db('contab');
-const getStockI=()=>db('stI'), getStockP=()=>db('stP'), getChat=()=>db('chat');
+const getStockI=()=>db('stI'), getStockP=()=>db('stP'), getChat=()=>db('chat'), getDiario=()=>db('diario');
 
 // ===================================================================
 // DASHBOARD
@@ -809,6 +829,7 @@ function renderInicio(){
       {id:'turnos',ico:'📅',lbl:'Turnos',desc:'Agenda y gestión de turnos'},
     ]},
     {titulo:'FINANZAS',color:'#10b981',items:[
+      {id:'diario',ico:'📔',lbl:'Libro Diario',desc:'Anotá ingresos y gastos del día a día'},
       {id:'facturas',ico:'🧾',lbl:'Facturas de Venta',desc:'Registrá e importá facturas emitidas'},
       {id:'cobranzas',ico:'💰',lbl:'Cobranzas',desc:'Seguimiento de cobros pendientes'},
       {id:'gastos',ico:'💸',lbl:'Gastos',desc:'Registrá e importá facturas de compra'},
@@ -2182,6 +2203,103 @@ function saveGasto(){const prov=document.getElementById('gProv').value.trim();if
 function delGasto(id){if(!confirm('¿Eliminar?'))return;dbS('g',getG().filter(g=>g.id!==id));renderGas();}
 
 // ===================================================================
+// LIBRO DIARIO (ingresos y gastos)
+// ===================================================================
+const MESES_LBL=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+let _dqTipo='ingreso', _dqFecha=null;
+function setDqTipo(t){
+  _dqTipo=t;
+  const bIng=document.getElementById('dqTipoIng'), bGas=document.getElementById('dqTipoGas');
+  if(!bIng||!bGas)return;
+  if(t==='ingreso'){bIng.style.borderColor='#16a34a';bIng.style.background='#d1fae5';bIng.style.color='#065f46';bGas.style.borderColor='#e5e7eb';bGas.style.background='#fff';bGas.style.color='#6b7280';}
+  else{bGas.style.borderColor='#dc2626';bGas.style.background='#fee2e2';bGas.style.color='#991b1b';bIng.style.borderColor='#e5e7eb';bIng.style.background='#fff';bIng.style.color='#6b7280';}
+}
+function quickAddDiario(){
+  const monto=parseFloat(document.getElementById('dqMonto').value)||0;
+  const desc=document.getElementById('dqDesc').value.trim();
+  const fecha=document.getElementById('dqFecha').value||today();
+  if(monto<=0){alert('Ingresá un monto válido');document.getElementById('dqMonto').focus();return;}
+  if(!desc){alert('Ingresá una breve descripción');document.getElementById('dqDesc').focus();return;}
+  const fp=document.getElementById('dqFP').value;
+  const list=getDiario();
+  list.push({id:uid(),fecha,tipo:_dqTipo,desc,fp,monto});
+  dbS('diario',list);
+  _dqFecha=fecha;
+  renderDiario();
+  document.getElementById('dqDesc').focus();
+}
+function renderDiario(){
+  const list=getDiario();
+  const totIng=list.filter(d=>d.tipo==='ingreso').reduce((s,d)=>s+(d.monto||0),0);
+  const totGas=list.filter(d=>d.tipo==='gasto').reduce((s,d)=>s+(d.monto||0),0);
+  const mesActual=today().slice(0,7);
+  const ingMes=list.filter(d=>d.tipo==='ingreso'&&d.fecha&&d.fecha.slice(0,7)===mesActual).reduce((s,d)=>s+(d.monto||0),0);
+  const gasMes=list.filter(d=>d.tipo==='gasto'&&d.fecha&&d.fecha.slice(0,7)===mesActual).reduce((s,d)=>s+(d.monto||0),0);
+  const meses={};
+  list.forEach(d=>{if(!d.fecha)return;const k=d.fecha.slice(0,7);meses[k]=meses[k]||{ing:0,gas:0};if(d.tipo==='ingreso')meses[k].ing+=d.monto||0;else meses[k].gas+=d.monto||0;});
+  const mesKeys=Object.keys(meses).sort().reverse();
+  const mesLbl=k=>{const [y,m]=k.split('-');return `${MESES_LBL[parseInt(m)-1]} ${y}`;};
+  document.getElementById('content').innerHTML=`
+  <div class="card" style="margin-bottom:18px;">
+    <h3 style="margin:0 0 14px;font-size:15px;font-weight:700;">➕ Cargar movimiento de hoy</h3>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;">
+      <div><label class="lbl">Fecha</label><input type="date" id="dqFecha" value="${_dqFecha||today()}" oninput="_dqFecha=this.value" style="min-width:150px;" /></div>
+      <div><label class="lbl">Tipo</label>
+        <div style="display:flex;gap:6px;">
+          <button type="button" id="dqTipoIng" onclick="setDqTipo('ingreso')" style="padding:9px 14px;border-radius:8px;border:2px solid ${_dqTipo==='ingreso'?'#16a34a':'#e5e7eb'};background:${_dqTipo==='ingreso'?'#d1fae5':'#fff'};color:${_dqTipo==='ingreso'?'#065f46':'#6b7280'};font-weight:700;cursor:pointer;white-space:nowrap;">💰 Ingreso</button>
+          <button type="button" id="dqTipoGas" onclick="setDqTipo('gasto')" style="padding:9px 14px;border-radius:8px;border:2px solid ${_dqTipo==='gasto'?'#dc2626':'#e5e7eb'};background:${_dqTipo==='gasto'?'#fee2e2':'#fff'};color:${_dqTipo==='gasto'?'#991b1b':'#6b7280'};font-weight:700;cursor:pointer;white-space:nowrap;">💸 Gasto</button>
+        </div>
+      </div>
+      <div style="flex:1;min-width:200px;"><label class="lbl">Descripción</label><input id="dqDesc" placeholder="Ej: Lavado Ford Focus" onkeydown="if(event.key==='Enter')quickAddDiario()" /></div>
+      <div style="width:130px;"><label class="lbl">Monto</label><input type="number" id="dqMonto" placeholder="0" onkeydown="if(event.key==='Enter')quickAddDiario()" /></div>
+      <div><label class="lbl">Forma pago</label><select id="dqFP"><option value="efectivo">Efectivo</option><option value="transferencia">Transferencia</option><option value="tarjeta">Tarjeta</option></select></div>
+      <button class="btn-gp" onclick="quickAddDiario()">+ Agregar</button>
+    </div>
+  </div>
+  <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:18px;">
+    <div class="kpi" style="padding:10px 20px;"><span style="font-size:12px;color:#9ca3af;">Ingresos mes actual: </span><span style="font-size:20px;font-weight:800;color:#4ade80;">${fmt(ingMes)}</span></div>
+    <div class="kpi" style="padding:10px 20px;"><span style="font-size:12px;color:#9ca3af;">Gastos mes actual: </span><span style="font-size:20px;font-weight:800;color:#f87171;">${fmt(gasMes)}</span></div>
+    <div class="kpi" style="padding:10px 20px;"><span style="font-size:12px;color:#9ca3af;">Balance mes actual: </span><span style="font-size:20px;font-weight:800;color:${(ingMes-gasMes)>=0?'#4ade80':'#f87171'};">${fmt(ingMes-gasMes)}</span></div>
+  </div>
+  ${mesKeys.length?`<div class="card" style="margin-bottom:18px;"><h3 style="margin:0 0 12px;font-size:15px;font-weight:700;">Facturación por mes</h3><div style="overflow-x:auto;"><table>
+    <thead><tr><th>Mes</th><th>Ingresos</th><th>Gastos</th><th>Balance</th></tr></thead>
+    <tbody>${mesKeys.map(k=>`<tr><td style="font-weight:600;">${mesLbl(k)}</td><td style="color:#16a34a;font-weight:700;">${fmt(meses[k].ing)}</td><td style="color:#dc2626;font-weight:700;">${fmt(meses[k].gas)}</td><td style="font-weight:700;color:${(meses[k].ing-meses[k].gas)>=0?'#16a34a':'#dc2626'};">${fmt(meses[k].ing-meses[k].gas)}</td></tr>`).join('')}</tbody>
+  </table></div></div>`:''}
+  <div class="card"><h3 style="margin:0 0 12px;font-size:15px;font-weight:700;">Movimientos <span style="font-weight:400;color:#9ca3af;">— Balance histórico: <strong style="color:${(totIng-totGas)>=0?'#16a34a':'#dc2626'};">${fmt(totIng-totGas)}</strong></span></h3>
+  <div style="overflow-x:auto;"><table>
+    <thead><tr><th>Fecha</th><th>Tipo</th><th>Descripción</th><th>Forma pago</th><th>Monto</th><th></th></tr></thead>
+    <tbody id="tDiario">${rowsDiario(list)}</tbody>
+  </table></div></div>`;
+  setDqTipo(_dqTipo);
+}
+function rowsDiario(list){
+  if(!list.length)return '<tr><td colspan="6" style="text-align:center;color:#9ca3af;padding:30px;">Sin movimientos todavía. Cargá el primero arriba ↑</td></tr>';
+  return [...list].sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||'')||0).map(d=>`<tr data-id="${d.id}"><td>${fmtDate(d.fecha)}</td><td><span class="badge ${d.tipo==='ingreso'?'b-green':'b-red'}" style="font-size:11px;">${d.tipo==='ingreso'?'Ingreso':'Gasto'}</span></td><td style="font-weight:600;">${escHtml(d.desc)}</td><td style="text-transform:capitalize;">${d.fp||'-'}</td><td style="font-weight:700;color:${d.tipo==='ingreso'?'#16a34a':'#dc2626'};">${d.tipo==='ingreso'?'+':'-'}${fmt(d.monto)}</td><td style="white-space:nowrap;"><button onclick="editDiario('${d.id}')" style="color:#d97706;background:none;border:none;cursor:pointer;font-size:13px;font-weight:600;margin-right:6px;">Editar</button>${CU.role==='admin'?`<button onclick="delDiario('${d.id}')" style="color:#ef4444;background:none;border:none;cursor:pointer;font-size:13px;">Eliminar</button>`:''}</td></tr>`).join('');
+}
+function editDiario(id){
+  const d=getDiario().find(x=>x.id===id);if(!d)return;
+  document.getElementById('dId').value=id;
+  document.getElementById('dFecha').value=d.fecha;
+  document.getElementById('dTipo').value=d.tipo;
+  document.getElementById('dDesc').value=d.desc||'';
+  document.getElementById('dMonto').value=d.monto;
+  document.getElementById('dFP').value=d.fp||'efectivo';
+  openM('mDiario');
+}
+function saveDiario(){
+  const monto=parseFloat(document.getElementById('dMonto').value)||0;
+  const desc=document.getElementById('dDesc').value.trim();
+  if(monto<=0){alert('Ingresá un monto válido');return;}
+  if(!desc){alert('Ingresá una descripción');return;}
+  const list=getDiario();
+  const editId=document.getElementById('dId').value;
+  const obj={id:editId||uid(),fecha:document.getElementById('dFecha').value,tipo:document.getElementById('dTipo').value,desc,fp:document.getElementById('dFP').value,monto};
+  if(editId){const i=list.findIndex(x=>x.id===editId);list[i]=obj;}else{list.push(obj);}
+  dbS('diario',list);closeM('mDiario');renderDiario();
+}
+function delDiario(id){if(!confirm('¿Eliminar este movimiento?'))return;dbS('diario',getDiario().filter(x=>x.id!==id));renderDiario();}
+
+// ===================================================================
 // CONFIGURACIÓN
 // ===================================================================
 let cfgSrvs=[];
@@ -2232,7 +2350,7 @@ function renderConfig(){
     </div>
     <div class="card">
       <h3 style="margin:0 0 14px;font-size:15px;font-weight:700;">Estadísticas</h3>
-      ${[['Clientes',getCli().length],['Órdenes de Trabajo',getOrdenes().length],['Presupuestos',getPres().length],['Facturas',getFV().length],['Gastos',getG().length],['Insumos',getStockI().length],['Productos',getStockP().length],['Chat',MEM.chat.length+' mensajes']].map(([k,v])=>`<div style="display:flex;justify-content:space-between;padding:7px 10px;background:#f9fafb;border-radius:6px;margin-bottom:6px;font-size:13px;"><span style="color:#6b7280;">${k}</span><strong>${v}</strong></div>`).join('')}
+      ${[['Clientes',getCli().length],['Órdenes de Trabajo',getOrdenes().length],['Presupuestos',getPres().length],['Facturas',getFV().length],['Gastos',getG().length],['Movimientos Libro Diario',getDiario().length],['Insumos',getStockI().length],['Productos',getStockP().length],['Chat',MEM.chat.length+' mensajes']].map(([k,v])=>`<div style="display:flex;justify-content:space-between;padding:7px 10px;background:#f9fafb;border-radius:6px;margin-bottom:6px;font-size:13px;"><span style="color:#6b7280;">${k}</span><strong>${v}</strong></div>`).join('')}
     </div>
   </div>`;
 }
@@ -2270,8 +2388,8 @@ function saveUserPerms(){
   const cfg=getCfg();cfg.usuarios=users;saveCfg(cfg);
   closeM('mUserPerms');renderConfig();
 }
-function exportar(){const data={ts:new Date().toISOString(),v:'3.0',cli:getCli(),pres:getPres(),fv:getFV(),g:getG(),ot:getOrdenes(),stI:getStockI(),stP:getStockP(),chat:MEM.chat,cfg:getCfg()};const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:'application/json'}));a.download=`gp-backup-${today()}.json`;a.click();}
-function importar(input){const file=input.files[0];if(!file)return;const r=new FileReader();r.onload=e=>{try{const d=JSON.parse(e.target.result);if(!confirm('¿Importar datos? Esto reemplazará todo lo actual.'))return;if(d.cli)dbS('cli',d.cli);if(d.pres)dbS('pres',d.pres);if(d.fv)dbS('fv',d.fv);if(d.g)dbS('g',d.g);if(d.ot)dbS('ot',d.ot);if(d.stI)dbS('stI',d.stI);if(d.stP)dbS('stP',d.stP);if(d.chat)dbS('chat',d.chat);if(d.cfg)saveCfg(d.cfg);alert('✅ Datos importados');renderConfig();}catch{alert('❌ Archivo inválido');}};r.readAsText(file);}
+function exportar(){const data={ts:new Date().toISOString(),v:'3.0',cli:getCli(),pres:getPres(),fv:getFV(),g:getG(),ot:getOrdenes(),stI:getStockI(),stP:getStockP(),chat:MEM.chat,diario:getDiario(),cfg:getCfg()};const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:'application/json'}));a.download=`gp-backup-${today()}.json`;a.click();}
+function importar(input){const file=input.files[0];if(!file)return;const r=new FileReader();r.onload=e=>{try{const d=JSON.parse(e.target.result);if(!confirm('¿Importar datos? Esto reemplazará todo lo actual.'))return;if(d.cli)dbS('cli',d.cli);if(d.pres)dbS('pres',d.pres);if(d.fv)dbS('fv',d.fv);if(d.g)dbS('g',d.g);if(d.ot)dbS('ot',d.ot);if(d.stI)dbS('stI',d.stI);if(d.stP)dbS('stP',d.stP);if(d.chat)dbS('chat',d.chat);if(d.diario)dbS('diario',d.diario);if(d.cfg)saveCfg(d.cfg);alert('✅ Datos importados');renderConfig();}catch{alert('❌ Archivo inválido');}};r.readAsText(file);}
 
 // ===================================================================
 // HOJA DE ENTREGA
