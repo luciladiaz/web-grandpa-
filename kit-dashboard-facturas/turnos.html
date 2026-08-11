@@ -193,10 +193,10 @@ function selSrv(id){
 function wdAdd(dateStr, n){
   if(n<=1) return dateStr;
   const d=new Date(dateStr+'T12:00:00'); let c=n-1;
-  while(c>0){d.setDate(d.getDate()+1);if(d.getDay()!==0&&d.getDay()!==6)c--;}
+  while(c>0){d.setDate(d.getDate()+1);if(d.getDay()!==0)c--;}
   return d.toISOString().split('T')[0];
 }
-function wdIsWorkday(ds){ const d=new Date(ds+'T12:00:00'); return d.getDay()!==0&&d.getDay()!==6; }
+function wdIsWorkday(ds){ const d=new Date(ds+'T12:00:00'); return d.getDay()!==0; }
 function turnoEnFecha(t, ds){ return t.estado!=='cancelado'&&ds>=t.fechaInicio&&ds<=t.fechaFin; }
 function getSlotsFecha(ds){ return turnos.filter(t=>turnoEnFecha(t,ds)); }
 function today(){ return new Date().toISOString().split('T')[0]; }
