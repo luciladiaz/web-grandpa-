@@ -13,6 +13,8 @@
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <!-- Firebase -->
 <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
@@ -736,8 +738,62 @@ function openPrintable(title, styleCss, bodyHtml){
 <div class="po-bar"><button class="po-close" id="poClose">✕ Cerrar</button><button class="po-print" id="poPrint">🖨️ Imprimir / Guardar PDF</button></div>
 <div class="po-doc">${bodyHtml}</div>`;
   root.getElementById('poClose').onclick = closePrintOverlay;
-  root.getElementById('poPrint').onclick = () => window.print();
+  root.getElementById('poPrint').onclick = () => printOrShare(root, title);
   window.scrollTo(0,0);
+}
+// En iOS, cuando el sitio está agregado a la pantalla de inicio ("standalone"),
+// Safari bloquea window.print() sin avisar (no pasa nada al tocar el botón).
+// En ese caso generamos el PDF nosotros mismos y lo mandamos al share nativo,
+// que además permite compartirlo directo por WhatsApp como archivo adjunto.
+function isStandaloneApp(){
+  return window.navigator.standalone === true || window.matchMedia('(display-mode: standalone)').matches;
+}
+async function printOrShare(root, title){
+  const canShareFiles = navigator.canShare && navigator.share &&
+    (()=>{ try { return navigator.canShare({files:[new File([''],'x.pdf',{type:'application/pdf'})]}); } catch(e){ return false; } })();
+  if(!(isStandaloneApp() && canShareFiles && window.html2canvas && window.jspdf)){
+    window.print();
+    return;
+  }
+  const btn = root.getElementById('poPrint');
+  const prevLabel = btn.textContent;
+  btn.textContent = '⏳ Generando PDF...'; btn.disabled = true;
+  let temp = null;
+  try{
+    // html2canvas no puede leer contenido dentro de un shadow root, así que
+    // clonamos el documento a un div normal (fuera de pantalla) solo para capturarlo.
+    const styleText = root.querySelector('style').textContent;
+    const docHtml = root.querySelector('.po-doc').innerHTML;
+    temp = document.createElement('div');
+    temp.style.cssText = 'position:fixed;left:-9999px;top:0;background:#fff;';
+    temp.innerHTML = `<style>${styleText}</style><div class="po-doc">${docHtml}</div>`;
+    document.body.appendChild(temp);
+    const canvas = await html2canvas(temp.querySelector('.po-doc'), {scale:2, backgroundColor:'#ffffff', useCORS:true});
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF({unit:'pt', format:'a4'});
+    const pageW = pdf.internal.pageSize.getWidth();
+    const pageH = pdf.internal.pageSize.getHeight();
+    const imgW = pageW;
+    const imgH = canvas.height * imgW / canvas.width;
+    const imgData = canvas.toDataURL('image/jpeg', 0.92);
+    let heightLeft = imgH, position = 0;
+    pdf.addImage(imgData, 'JPEG', 0, position, imgW, imgH);
+    heightLeft -= pageH;
+    while(heightLeft > 0){
+      position = heightLeft - imgH;
+      pdf.addPage();
+      pdf.addImage(imgData, 'JPEG', 0, position, imgW, imgH);
+      heightLeft -= pageH;
+    }
+    const blob = pdf.output('blob');
+    const file = new File([blob], `${title}.pdf`, {type:'application/pdf'});
+    await navigator.share({files:[file], title});
+  }catch(e){
+    if(e.name !== 'AbortError') alert('No se pudo generar el PDF. Probá abriendo el sitio en Safari (no desde el ícono de inicio) y usá Imprimir.');
+  }finally{
+    if(temp) temp.remove();
+    btn.textContent = prevLabel; btn.disabled = false;
+  }
 }
 function closePrintOverlay(){
   const el = document.getElementById('printOverlay');
