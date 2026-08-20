@@ -74,6 +74,8 @@ tbody tr:hover td { background: #fafafa; }
   body > *:not(#printOverlay) { display: none !important; }
   #printOverlay { position: static !important; overflow: visible !important; }
 }
+/* margin:0 le saca a Safari el espacio donde dibuja la URL, fecha y "Página X de Y" al imprimir */
+@page { margin: 0; }
 </style>
 </head>
 <body>
@@ -768,7 +770,7 @@ async function printOrShare(root, title){
     temp.style.cssText = 'position:fixed;left:-9999px;top:0;background:#fff;';
     temp.innerHTML = `<style>${styleText}</style><div class="po-doc">${docHtml}</div>`;
     document.body.appendChild(temp);
-    const canvas = await html2canvas(temp.querySelector('.po-doc'), {scale:2, backgroundColor:'#ffffff', useCORS:true});
+    const canvas = await html2canvas(temp.querySelector('.po-doc'), {scale:1.5, backgroundColor:'#ffffff', useCORS:true, logging:false});
     const { jsPDF } = window.jspdf;
     const pdf = new jsPDF({unit:'pt', format:'a4'});
     const pageW = pdf.internal.pageSize.getWidth();
